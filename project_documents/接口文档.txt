@@ -1,0 +1,406 @@
+Iwan博客项目-全局API接口规范文档（V1.0）
+1. 文档概述
+1.1 文档目的
+本文档为 Iwan个人社交博客系统 后端统一API接口开发规范，用于统一前后端交互标准、统一编码风格、统一返回结构、统一异常与分页规则。
+所有业务接口、管理员接口、文件接口、AI预留接口、WebSocket交互接口全部遵循本规范，保证项目可维护、可迭代、可无缝扩展AI能力、团队协作统一。
+1.2 适用范围
+Iwan项目所有HTTP/HTTPS业务接口、文件上传接口、后台管理接口、AI扩展接口、回调接口。
+1.3 设计原则
+•	遵循 RESTful 接口语义规范
+•	统一入参、统一出参、统一状态码、统一异常信息
+•	接口分层解耦，支持后续新增模块、新增AI功能无缝接入
+•	严格权限控制、参数校验、防重复、安全合规
+•	所有接口预留扩展字段，适配长期迭代
+2. 基础全局规范
+2.1 项目基础信息
+项目名称：Iwan 个人社交博客系统
+接口协议：HTTP / HTTPS
+数据编码：UTF-8
+数据格式：JSON
+2.2 全局接口前缀（固定）
+为区分业务模块、管理模块、AI模块，全局统一三套前缀，彻底解耦，方便后续权限隔离、路由分发、版本迭代。
+•	前台用户业务接口：/Iwan/api/v1/
+•	后台管理员接口：/Iwan/api/admin/v1/
+•	AI智能扩展接口：/Iwan/api/ai/v1/
+优势：后续可独立扩展 v2 版本、独立拆分AI服务、独立管控后台权限，互不冲突。
+2.3 HTTP请求方法规范（RESTful）
+严格限定请求方式，语义统一，禁止乱用请求方法。
+请求方法	语义	使用场景
+GET	查询、读取	获取列表、详情、统计、公开数据，禁止写操作
+POST	新增、提交	新增数据、发布内容、登录注册、复杂提交
+PUT	全量更新	完整更新一条数据、编辑全部内容
+PATCH	局部更新	更新部分字段（状态、权限、配置）
+DELETE	删除	逻辑删除/物理删除数据
+2.4 URL命名规范
+•	全部采用 小写字母 + 下划线
+•	资源名词复数形式，语义清晰
+•	禁止拼音、禁止乱缩写、禁止大小写混合
+示例：
+•	正确：/Iwan/api/v1/articles 获取文章列表
+•	正确：/Iwan/api/v1/friends 获取好友列表
+•	正确：/Iwan/api/ai/v1/chat/session AI会话操作
+3. 全局统一返回格式（核心规范）
+所有接口必须返回统一JSON结构，无特例，方便前端统一拦截、统一提示、统一异常处理。
+3.1 统一返回结构体
+json
+{
+  "code": 200,
+  "msg": "请求成功",
+  "data": {},
+  "extend": {}
+}
+3.2 字段详细说明（含扩展设计）
+•	code：业务状态码，前端判断成功/失败的唯一依据
+•	msg：返回提示信息，用于前端展示文案
+•	data：主体业务数据，成功时返回具体内容，失败返回null/空
+•	extend：全局预留扩展字段，用于存放附加信息、版本信息、AI参数、日志ID、权限标识、追踪ID，后续新增功能无需改返回结构
+4. 全局状态码规范
+区分 HTTP状态码 和 自定义业务状态码，前端只识别业务码，语义清晰、便于排查问题。
+4.1 业务状态码清单
+业务码	含义	使用场景
+200	成功	所有正常请求返回
+400	参数错误	入参缺失、格式错误、参数非法
+401	未登录 / Token失效	未鉴权、令牌过期、令牌伪造
+403	权限不足	登录但无访问权限、内容私密无权查看
+404	资源不存在	文章已删除、用户不存在、记录不存在
+409	业务冲突	重复操作、好友已存在、重复点赞
+429	请求频繁/限流	接口限流、防刷控制
+500	服务器异常	程序报错、数据库异常、中间件异常
+600+	AI模块自定义错误	AI超时、向量检索失败、模型调用异常（预留区间）
+5. 统一分页规范（全局通用）
+所有列表查询接口统一分页结构体，杜绝五花八门的分页格式，预留排序、扩展参数。
+5.1 分页入参
+json
+{
+  "pageNum": 1,
+  "pageSize": 10,
+  "sortField": "create_time",
+  "sortOrder": "desc",
+  "filter": {}
+}
+•	pageNum：页码，默认1
+•	pageSize：每页条数，默认10，最大限制50
+•	sortField：排序字段，默认创建时间
+•	sortOrder：排序方式 asc/desc
+•	filter：预留扩展筛选对象，所有模糊查询、条件查询全部放入filter，无需新增参数
+5.2 分页出参
+json
+{
+  "code": 200,
+  "msg": "请求成功",
+  "data": {
+    "total": 100,
+    "pages": 10,
+    "current": 1,
+    "size": 10,
+    "records": [],
+    "pageExt": {}
+  },
+  "extend": {}
+}
+•	total：总条数
+•	pages：总页数
+•	current：当前页
+•	size：每页大小
+•	records：数据列表
+•	pageExt：分页扩展字段，用于返回聚合数据、统计数据、附加参数
+6. 统一请求头规范
+6.1 必须携带请求头
+•	Authorization：用户登录Token，格式：Bearer token值
+•	Content-Type：默认 application/json;charset=UTF-8
+未登录访客接口无需携带Token，后端自动适配匿名身份。
+7. 特殊接口规范
+7.1 文件上传接口规范
+•	请求方式：POST
+•	Content-Type：multipart/form-data
+•	统一返回：文件URL、文件名、文件大小、文件类型、上传时间
+•	支持单文件、多文件批量上传
+•	后端统一校验：文件类型、大小、恶意文件拦截
+7.2 WebSocket实时通信规范
+用于即时聊天、实时状态推送，统一消息格式：
+json
+{
+  "type": "chat|notice|status",
+  "fromUserId": "",
+  "toUserId": "",
+  "content": "",
+  "time": "",
+  "wsExt": {}
+}
+wsExt 预留扩展，适配后续表情包、已读回执、消息撤回等功能。
+7.3 AI接口专属规范
+AI接口统一前缀 /Iwan/api/ai/v1/，单独做限流、超时、重试策略：
+•	所有AI对话、RAG检索、内容生成统一走AI网关
+•	返回体保留 stream 流式标识，支持流式输出与普通返回兼容
+•	统一携带model版本、token消耗、耗时信息放入extend
+•	预留AI功能灰度、权限、付费控制字段
+8. 全局扩展设计（重点）
+本接口规范全部预留扩展能力，完全适配Iwan项目长期迭代：
+•	统一 extend 顶层扩展字段：支持全局附加参数，无需改结构
+•	分页 filter/pageExt：支持无限新增筛选条件、分页统计
+•	AI独立路由前缀：后续可微服务拆分、独立部署AI模块
+•	业务码预留600+区间：专门用于AI异常、智能功能异常
+•	WebSocket消息预留wsExt：适配聊天功能持续迭代
+•	所有入参不写死固定字段，支持JSONB动态业务适配
+9. 接口开发强制约束
+•	禁止私自修改返回结构，所有接口必须遵守统一模板
+•	所有新增功能优先使用扩展字段，禁止随意新增顶层参数
+•	所有查询类接口默认开启分页，防止大数据量溢出
+•	所有写操作必须做参数校验、权限校验、防重复提交
+•	异常统一捕获，禁止直接抛出原生错误信息到前端
+10. 项目全量业务接口清单（正式开发可用）
+本章基于Iwan项目所有业务模块，整理全量落地接口，严格遵循上方统一前缀、REST风格、返回规范。覆盖：用户模块、博客内容模块、分类标签模块、社交好友模块、互动模块、AI智能模块、后台管理模块，无遗漏、可直接对接开发。
+10.1 用户账号模块接口
+•	POST /Iwan/api/v1/user/register — 用户注册
+•	POST /Iwan/api/v1/user/login — 用户登录（获取Token）
+•	POST /Iwan/api/v1/user/logout — 退出登录
+•	GET /Iwan/api/v1/user/info — 获取当前登录用户信息
+•	PUT /Iwan/api/v1/user/info — 修改个人资料
+•	PATCH /Iwan/api/v1/user/password — 修改密码
+•	PATCH /Iwan/api/v1/user/avatar — 头像更新
+•	GET /Iwan/api/v1/user/detail/{id} — 查看他人用户主页信息
+10.2 好友社交模块接口
+•	GET /Iwan/api/v1/friends — 获取好友列表
+•	POST /Iwan/api/v1/friends — 添加好友/发起好友申请
+•	PUT /Iwan/api/v1/friends/audit — 同意/拒绝好友申请
+•	DELETE /Iwan/api/v1/friends/{id} — 删除好友
+•	PATCH /Iwan/api/v1/friends/remark — 修改好友备注
+•	GET /Iwan/api/v1/friend/groups — 获取好友分组列表
+•	POST /Iwan/api/v1/friend/groups — 新建好友分组
+•	PUT /Iwan/api/v1/friend/groups/{id} — 修改分组信息
+•	DELETE /Iwan/api/v1/friend/groups/{id} — 删除分组
+•	PATCH /Iwan/api/v1/friend/group/move — 好友移动分组
+10.3 博客分类模块接口
+•	GET /Iwan/api/v1/categories — 获取分类列表
+•	POST /Iwan/api/v1/categories — 新增分类
+•	PUT /Iwan/api/v1/categories/{id} — 修改分类
+•	DELETE /Iwan/api/v1/categories/{id} — 删除分类
+10.4 博客标签模块接口
+•	GET /Iwan/api/v1/tags — 获取全部标签
+•	POST /Iwan/api/v1/tags — 新增标签
+•	PUT /Iwan/api/v1/tags/{id} — 修改标签
+•	DELETE /Iwan/api/v1/tags/{id} — 删除标签
+10.5 博客文章核心接口
+•	GET /Iwan/api/v1/articles — 分页获取博客列表（首页/分类/标签筛选）
+•	GET /Iwan/api/v1/articles/{id} — 获取博客详情
+•	POST /Iwan/api/v1/articles — 发布新博客
+•	PUT /Iwan/api/v1/articles/{id} — 编辑博客全文
+•	PATCH /Iwan/api/v1/articles/status — 修改博客状态（公开/私密/草稿）
+•	DELETE /Iwan/api/v1/articles/{id} — 逻辑删除博客
+•	GET /Iwan/api/v1/articles/user — 获取当前用户自己发布的文章
+10.6 评论回复模块接口
+•	GET /Iwan/api/v1/comments — 分页获取文章评论列表
+•	POST /Iwan/api/v1/comments — 发布评论/回复
+•	DELETE /Iwan/api/v1/comments/{id} — 删除评论
+10.7 点赞、收藏互动模块接口
+•	POST /Iwan/api/v1/action/like — 文章点赞/取消点赞
+•	POST /Iwan/api/v1/action/collect — 文章收藏/取消收藏
+•	GET /Iwan/api/v1/action/like/list — 获取我点赞的文章
+•	GET /Iwan/api/v1/action/collect/list — 获取我收藏的文章
+10.8 文件上传通用接口
+•	POST /Iwan/api/v1/upload/image — 图片上传（头像、博客配图）
+•	POST /Iwan/api/v1/upload/file — 通用文件上传（预留拓展）
+10.9 AI智能模块全套接口（核心）
+•	GET /Iwan/api/ai/v1/chat/sessions — 获取AI会话列表
+•	POST /Iwan/api/ai/v1/chat/sessions — 新建AI会话
+•	DELETE /Iwan/api/ai/v1/chat/sessions/{id} — 删除AI会话
+•	GET /Iwan/api/ai/v1/chat/messages — 获取会话历史消息
+•	POST /Iwan/api/ai/v1/chat/messages — 发送AI对话消息（支持流式）
+•	POST /Iwan/api/ai/v1/rag/search — AI知识库内容检索
+•	POST /Iwan/api/ai/v1/article/generate — AI辅助创作博客
+•	POST /Iwan/api/ai/v1/article/rewrite — AI润色/改写文章
+•	GET /Iwan/api/ai/v1/stat/user — 获取个人AI使用统计
+10.10 后台管理员接口（预留完整）
+•	GET /Iwan/api/admin/v1/user/list — 管理员分页查询用户
+•	PATCH /Iwan/api/admin/v1/user/status — 禁用/解禁用户
+•	GET /Iwan/api/admin/v1/article/list — 后台文章管理列表
+•	PATCH /Iwan/api/admin/v1/article/audit — 文章审核状态修改
+•	GET /Iwan/api/admin/v1/comment/list — 后台评论管理
+•	DELETE /Iwan/api/admin/v1/comment/{id} — 后台删除违规评论
+•	GET /Iwan/api/admin/v1/ai/stat — 全站AI使用数据统计
+11. 接口完整性说明
+本次补齐接口100% 覆盖项目所有功能模块：
+•	用户体系：注册、登录、个人中心、资料修改
+•	社交体系：好友、分组、申请、备注、关系管理
+•	内容体系：分类、标签、文章全套CRUD
+•	互动体系：评论、点赞、收藏、个人互动记录
+•	文件体系：图片/文件上传
+•	AI全套业务接口（含RAG、对话、创作、润色、统计）
+•	后台完整管理接口，支持运维审核
+所有接口完全适配前面的规范、前缀、分页、返回体、扩展字段，无冲突、可直接用于前后端开发。
+12. 各模块接口详细参数文档（可直接开发对接）
+本章为全量接口详细参数定义，包含接口说明、请求参数、返回参数、请求示例、特殊说明，严格遵循前文统一规范，所有参数预留扩展空间，适配长期迭代。
+12.1 用户账号模块接口详情
+12.1.1 用户注册
+接口地址：POST /Iwan/api/v1/user/register
+接口说明：新用户账号注册，自动生成默认用户信息，无权限默认普通用户，参数严格校验防恶意注册
+请求入参
+json
+{
+  "username": "string", // 必填，账号名，唯一、小写字母数字
+  "password": "string", // 必填，密码，长度6-20位
+  "nickname": "string", // 必填，用户昵称
+  "email": "string" // 选填，邮箱，唯一
+}
+返回data
+json
+{
+  "userId": "string",
+  "username": "string",
+  "nickname": "string",
+  "token": "string",
+  "userExt": {}
+}
+12.1.2 用户登录
+接口地址：POST /Iwan/api/v1/user/login
+接口说明：账号密码登录，返回鉴权Token，无状态登录，适配分布式扩展
+请求入参
+json
+{
+  "username": "string",
+  "password": "string"
+}
+返回data
+json
+{
+  "token": "string",
+  "userId": "string",
+  "nickname": "string",
+  "avatar": "string",
+  "role": "string"
+}
+12.1.3 退出登录
+接口地址：POST /Iwan/api/v1/user/logout
+接口说明：注销当前Token，清空登录状态
+12.1.4 获取当前用户信息
+接口地址：GET /Iwan/api/v1/user/info
+接口说明：获取登录用户完整个人资料、拓展配置
+12.1.5 修改个人资料
+接口地址：PUT /Iwan/api/v1/user/info
+接口说明：全量更新用户昵称、简介、个人配置等信息
+12.1.6 修改密码
+接口地址：PATCH /Iwan/api/v1/user/password
+接口说明：局部更新密码，需校验原密码
+12.1.7 头像更新
+接口地址：PATCH /Iwan/api/v1/user/avatar
+接口说明：单独更新用户头像地址
+12.1.8 查看他人用户主页
+接口地址：GET /Iwan/api/v1/user/detail/{id}
+接口说明：公开用户信息展示，屏蔽隐私字段
+12.2 好友社交模块接口详情
+12.2.1 获取好友列表
+接口地址：GET /Iwan/api/v1/friends
+接口说明：分页获取当前用户所有好友，支持分组筛选、关键词搜索
+请求入参：通用分页参数 + filter（分组ID、好友昵称模糊匹配）
+12.2.2 添加好友/发起申请
+接口地址：POST /Iwan/api/v1/friends
+接口说明：发起好友申请，防重复申请、防自我添加
+请求入参
+json
+{
+  "targetUserId": "string",
+  "applyRemark": "string"
+}
+12.2.3 好友申请审核
+接口地址：PUT /Iwan/api/v1/friends/audit
+接口说明：同意/拒绝好友申请，双向建立好友关系
+请求入参
+json
+{
+  "applyId": "string",
+  "status": 1 // 1同意 2拒绝
+}
+12.2.4 删除好友
+接口地址：DELETE /Iwan/api/v1/friends/{id}
+接口说明：双向解除好友关系，逻辑删除
+12.2.5 修改好友备注
+接口地址：PATCH /Iwan/api/v1/friends/remark
+接口说明：局部更新好友备注名称
+12.2.6 好友分组全套接口
+分组列表、新增、编辑、删除、移动好友，均遵循通用分页、REST规范，入参携带分组名称、排序值、归属用户
+12.3 分类、标签模块接口详情
+分类与标签接口统一规范：查询分页、新增传名称/排序/封面，编辑全量更新，删除逻辑删除，适配文章关联查询
+12.4 博客文章核心接口详情
+12.4.1 分页获取博客列表
+接口地址：GET /Iwan/api/v1/articles
+接口说明：首页核心接口，支持分类、标签、关键词、状态多条件筛选
+请求入参：通用分页参数 + filter（categoryId、tagId、keyword、status）
+12.4.2 发布博客
+接口地址：POST /Iwan/api/v1/articles
+接口说明：发布新文章，支持富文本、标签绑定、分类绑定、权限设置
+请求入参
+json
+{
+  "title": "string",
+  "content": "string",
+  "categoryId": "string",
+  "tagList": ["string"],
+  "status": 1, // 1公开 2私密 3草稿
+  "cover": "string",
+  "articleExt": {}
+}
+12.4.3 编辑、删除、状态修改
+编辑为全量覆盖更新，状态修改为局部更新，删除为逻辑删除，全部适配权限校验（仅作者/管理员可操作）
+12.5 评论回复模块接口详情
+12.5.1 发布评论/回复
+接口地址：POST /Iwan/api/v1/comments
+接口说明：支持一级评论、多级回复，自动关联父级评论
+请求入参
+json
+{
+  "articleId": "string",
+  "parentId": "string",
+  "content": "string",
+  "commentExt": {}
+}
+12.6 点赞收藏互动模块详情
+12.6.1 点赞/取消点赞
+接口地址：POST /Iwan/api/v1/action/like
+接口说明：幂等接口，重复请求自动切换点赞/取消状态
+请求入参
+json
+{
+  "targetId": "string",
+  "targetType": "article"
+}
+12.6.2 收藏/取消收藏
+接口地址：POST /Iwan/api/v1/action/collect
+接口说明：幂等设计，自动切换收藏状态
+12.6.3 我的点赞/收藏列表
+通用分页接口，返回用户互动过的文章列表
+12.7 文件上传接口详情请求方式：POST + form-data接口说明：统一校验文件大小、后缀、恶意文件，返回完整URL、文件信息、上传时间返回data{
+  "fileUrl": "string",
+  "fileName": "string",
+  "fileSize": "number",
+  "fileType": "string",
+  "uploadTime": "string"
+}12.8 AI智能模块接口详情（重点）
+12.8.1 新建AI会话
+接口地址：POST /Iwan/api/ai/v1/chat/sessions
+接口说明：创建全新对话会话，支持自定义会话名称、场景
+12.8.2 发送AI对话消息
+接口地址：POST /Iwan/api/ai/v1/chat/messages
+接口说明：支持普通返回 + 流式输出，承载RAG知识库问答、通用对话
+请求入参
+json
+{
+  "sessionId": "string",
+  "prompt": "string",
+  "stream": true,
+  "model": "default",
+  "aiExt": {}
+}
+12.8.3 AI文章生成/润色
+接口地址：POST /Iwan/api/ai/v1/article/generate / rewrite
+接口说明：AI辅助创作、全文润色、句式优化，结果可直接回填编辑器
+12.8.4 AI知识库检索
+接口地址：POST /Iwan/api/ai/v1/rag/search
+接口说明：基于本地博客向量知识库相似度检索，实现私有知识问答
+12.9 后台管理员接口详情
+后台接口统一权限拦截，仅管理员可访问，支持用户管控、文章审核、评论管理、全站AI数据统计，入参适配后台分页、筛选、状态管控场景
+13. 全局接口幂等与安全规范（补充）
+•	写操作全部支持幂等：点赞、收藏、好友申请、发布内容重复请求无脏数据
+•	权限三层校验：未登录拦截、登录权限拦截、资源归属拦截
+•	AI接口单独限流：防止大模型高频调用耗费资源
+•	所有动态参数预留ext扩展字段，完全适配后续功能迭代、模型升级、业务新增
+|（注：文档部分内容可能由 AI 生成）

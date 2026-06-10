@@ -1,0 +1,52 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /iwan
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/iwan_blog?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 3000ms
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    default-enum-type-handler: com.iwan.blog.handler.JsonbTypeHandler
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: is_deleted
+      logic-delete-value: true
+      logic-not-delete-value: false
+  type-handlers-package: com.iwan.blog.handler
+
+jwt:
+  secret: iwan_blog_jwt_secret_key_2024_must_be_at_least_32_bytes_long
+  expiration: 86400000
+
+logging:
+  level:
+    com.iwan.blog: DEBUG
