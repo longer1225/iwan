@@ -1,7 +1,7 @@
 <template>
   <div class="square-container">
     <header class="header">
-      <div class="logo">Iwan</div>
+      <div class="logo">iwan</div>
       <div class="search-box">
         <el-input 
           v-model="searchKeyword" 
@@ -21,12 +21,17 @@
       <aside class="sidebar">
         <div class="section">
           <h3>分类</h3>
-          <el-tree 
-            :data="categories" 
-            :props="treeProps"
-            :expand-on-click-node="false"
-            @node-click="handleCategoryClick"
-          />
+          <div class="category-list">
+            <div 
+              v-for="cat in categories" 
+              :key="cat.id" 
+              class="category-item"
+              :class="{ active: selectedCategory === cat.id }"
+              @click="handleCategoryClick(cat)"
+            >
+              {{ cat.name }}
+            </div>
+          </div>
         </div>
         
         <div class="section">
@@ -47,57 +52,72 @@
       
       <main class="main-content">
         <div class="filter-bar">
-          <el-select 
-            v-model="sortType" 
-            placeholder="排序方式" 
-            size="small"
-          >
-            <el-option label="最新发布" value="newest" />
-            <el-option label="最热点赞" value="likes" />
-            <el-option label="最多收藏" value="collects" />
-          </el-select>
+          <div class="sort-tabs">
+            <button 
+              v-for="tab in sortTabs" 
+              :key="tab.value"
+              :class="{ active: sortType === tab.value }"
+              @click="handleSortChange(tab.value)"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
           <span class="result-count">共 {{ total }} 篇文章</span>
         </div>
         
-        <div class="article-list">
+        <!-- 小红书风格封面网格布局 -->
+        <div class="article-grid">
           <article 
             v-for="article in articles" 
             :key="article.id" 
             class="article-card"
             @click="goToDetail(article.id)"
           >
-            <div class="article-cover">
-              <img :src="article.cover || defaultCover" alt="封面" />
+            <div class="article-cover-wrapper">
+              <div class="article-cover" :class="{ 'has-video': article.mediaType === 'video' }">
+                <img v-if="article.cover" :src="article.cover" alt="封面" />
+                <div v-else class="default-cover">
+                  <i class="el-icon-file-text"></i>
+                </div>
+                <!-- 视频标识 -->
+                <div v-if="article.mediaType === 'video'" class="video-overlay">
+                  <i class="el-icon-video-play"></i>
+                </div>
+                <!-- 音频标识 -->
+                <div v-if="article.mediaType === 'audio'" class="audio-overlay">
+                  <i class="el-icon-headphones"></i>
+                </div>
+              </div>
+              <!-- 封面底部信息 -->
+              <div class="cover-footer">
+                <div class="stats">
+                  <span class="stat-item">
+                    <i class="el-icon-view"></i> {{ article.readCount || 0 }}
+                  </span>
+                  <span class="stat-item">
+                    <i class="el-icon-heart"></i> {{ article.likeCount || 0 }}
+                  </span>
+                  <span class="stat-item">
+                    <i class="el-icon-chat-dot-round"></i> {{ article.commentCount || 0 }}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="article-content">
+            <!-- 标题和摘要 -->
+            <div class="article-info">
               <h3 class="article-title">{{ article.title }}</h3>
               <p class="article-summary">{{ article.summary }}</p>
-              <div class="article-meta">
-                <span class="author">
-                  <img :src="article.authorAvatar" class="avatar" />
-                  {{ article.authorName }}
-                </span>
-                <span class="time">{{ formatRelativeTime(article.createTime) }}</span>
-                <span class="category">{{ article.categoryName }}</span>
-              </div>
-              <div class="article-tags">
-                <el-tag 
-                  v-for="tag in article.tags" 
-                  :key="tag" 
-                  size="small" 
-                  type="info"
-                >
-                  {{ tag }}
-                </el-tag>
-              </div>
-              <div class="article-stats">
-                <span><i class="eye"></i> {{ article.readCount }}</span>
-                <span><i class="heart"></i> {{ article.likeCount }}</span>
-                <span><i class="bookmark"></i> {{ article.collectCount }}</span>
-                <span><i class="message"></i> {{ article.commentCount }}</span>
+              <!-- 作者信息 -->
+              <div class="author-info">
+                <img :src="article.authorAvatar || defaultAvatar" class="avatar" />
+                <span class="author-name">{{ article.authorName || '匿名用户' }}</span>
               </div>
             </div>
           </article>
+        </div>
+        
+        <div v-if="articles.length === 0" class="empty-state">
+          <el-empty description="暂无文章" />
         </div>
         
         <el-pagination
@@ -107,6 +127,7 @@
           v-model:current-page="pageNum"
           layout="prev, pager, next, jumper"
           @current-change="handlePageChange"
+          class="pagination"
         />
       </main>
     </div>
@@ -116,24 +137,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { articleApi } from '@/api/article'
-import { formatRelativeTime } from '@/utils/format'
 import BottomNav from '@/components/BottomNav.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-const defaultCover = 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=minimalist%20blog%20cover%20art%20abstract%20gradient&image_size=landscape_16_9'
+const defaultAvatar = 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=professional%20avatar%20portrait%20minimalist&image_size=square'
 
 const searchKeyword = ref('')
-const sortType = ref('newest')
+const sortType = ref('time')
 const selectedTag = ref(null)
 const selectedCategory = ref(null)
 const pageNum = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(12)
 const total = ref(0)
 
 const articles = ref([])
@@ -142,22 +162,19 @@ const hotTags = ref([])
 
 const isLoggedIn = userStore.isLoggedIn
 
-const treeProps = {
-  label: 'name',
-  children: 'children'
-}
+const sortTabs = [
+  { label: '最新', value: 'time' },
+  { label: '最热', value: 'hot' }
+]
 
 const loadArticles = async () => {
   const params = {
     pageNum: pageNum.value,
     pageSize: pageSize.value,
-    sortField: sortType.value === 'newest' ? 'create_time' : sortType.value === 'likes' ? 'like_count' : 'collect_count',
-    sortOrder: 'desc',
-    filter: {
-      keyword: searchKeyword.value,
-      tagId: selectedTag.value,
-      categoryId: selectedCategory.value
-    }
+    keyword: searchKeyword.value,
+    categoryId: selectedCategory.value,
+    tagId: selectedTag.value,
+    sortBy: sortType.value
   }
   
   try {
@@ -173,24 +190,24 @@ const loadArticles = async () => {
 
 const loadCategories = async () => {
   categories.value = [
-    { id: null, name: '全部', children: [] },
-    { id: 1, name: '技术博客', children: [{ id: 11, name: '前端开发' }, { id: 12, name: '后端开发' }] },
-    { id: 2, name: '生活随笔', children: [] },
-    { id: 3, name: '读书笔记', children: [] },
-    { id: 4, name: 'AI人工智能', children: [] }
+    { id: null, name: '全部' },
+    { id: '1', name: '技术博客' },
+    { id: '2', name: '生活随笔' },
+    { id: '3', name: '读书笔记' },
+    { id: '4', name: 'AI人工智能' }
   ]
 }
 
 const loadHotTags = async () => {
   hotTags.value = [
-    { id: 1, name: 'Vue' },
-    { id: 2, name: 'React' },
-    { id: 3, name: 'Java' },
-    { id: 4, name: 'Python' },
-    { id: 5, name: 'AI' },
-    { id: 6, name: '数据库' },
-    { id: 7, name: '前端' },
-    { id: 8, name: '后端' }
+    { id: '1', name: 'Vue' },
+    { id: '2', name: 'React' },
+    { id: '3', name: 'Java' },
+    { id: '4', name: 'Python' },
+    { id: '5', name: 'AI' },
+    { id: '6', name: '数据库' },
+    { id: '7', name: '前端' },
+    { id: '8', name: '后端' }
   ]
 }
 
@@ -199,14 +216,20 @@ const handleSearch = () => {
   loadArticles()
 }
 
-const handleCategoryClick = (data) => {
-  selectedCategory.value = data.id
+const handleCategoryClick = (cat) => {
+  selectedCategory.value = selectedCategory.value === cat.id ? null : cat.id
   pageNum.value = 1
   loadArticles()
 }
 
 const handleTagClick = (tag) => {
   selectedTag.value = selectedTag.value === tag.id ? null : tag.id
+  pageNum.value = 1
+  loadArticles()
+}
+
+const handleSortChange = (value) => {
+  sortType.value = value
   pageNum.value = 1
   loadArticles()
 }
@@ -225,7 +248,7 @@ const goToLogin = () => {
 }
 
 const goToWrite = () => {
-  router.push('/profile')
+  router.push('/write')
 }
 
 onMounted(() => {
@@ -238,7 +261,7 @@ onMounted(() => {
 <style scoped>
 .square-container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--bg-primary, #f5f5f5);
   padding-bottom: 80px;
 }
 
@@ -248,7 +271,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   height: 60px;
-  background: white;
+  background: var(--bg-secondary, white);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -288,7 +311,7 @@ onMounted(() => {
 }
 
 .section {
-  background: white;
+  background: var(--bg-secondary, white);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
@@ -297,8 +320,32 @@ onMounted(() => {
 .section h3 {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary, #333);
   margin-bottom: 12px;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: all 0.3s;
+  
+  &:hover {
+    background-color: var(--hover-bg, #f5f5f5);
+  }
+  
+  &.active {
+    background-color: #667eea;
+    color: white;
+  }
 }
 
 .tag-list {
@@ -329,57 +376,153 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.result-count {
-  font-size: 14px;
-  color: #999;
+.sort-tabs {
+  display: flex;
+  gap: 4px;
+  background-color: var(--bg-secondary, #f5f5f5);
+  padding: 4px;
+  border-radius: 8px;
 }
 
-.article-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.sort-tabs button {
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: all 0.3s;
+  
+  &.active {
+    background-color: var(--bg-primary, white);
+    color: #667eea;
+    font-weight: 500;
+  }
+}
+
+.result-count {
+  font-size: 14px;
+  color: var(--text-tertiary, #999);
+}
+
+/* 小红书风格网格布局 */
+.article-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
 .article-card {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  gap: 16px;
+  background: var(--bg-secondary, white);
+  border-radius: 12px;
+  overflow: hidden;
   cursor: pointer;
   transition: all 0.3s;
   
   &:hover {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
   }
 }
 
+.article-cover-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 100%; /* 正方形比例 */
+}
+
 .article-cover {
-  width: 200px;
-  height: 140px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
+  
+  &.has-video {
+    img {
+      filter: brightness(0.8);
+    }
+  }
 }
 
-.article-content {
-  flex: 1;
+.default-cover {
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 48px;
+}
+
+.video-overlay, .audio-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  
+  .el-icon-video-play {
+    margin-left: 4px;
+  }
+}
+
+.audio-overlay {
+  font-size: 20px;
+}
+
+.cover-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+}
+
+.stats {
+  display: flex;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: white;
+  
+  i {
+    font-size: 12px;
+  }
+}
+
+.article-info {
+  padding: 16px;
 }
 
 .article-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary, #333);
   margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -388,8 +531,8 @@ onMounted(() => {
 
 .article-summary {
   font-size: 14px;
-  color: #666;
-  line-height: 1.6;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -397,50 +540,30 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.article-meta {
+.author-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 8px;
 }
 
-.author {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.author-info .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.author-name {
   font-size: 13px;
-  color: #666;
-  
-  .avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-  }
+  color: var(--text-secondary, #666);
 }
 
-.time, .category {
-  font-size: 13px;
-  color: #999;
+.empty-state {
+  padding: 60px;
+  text-align: center;
 }
 
-.article-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.article-stats {
-  display: flex;
-  gap: 16px;
-  margin-top: auto;
-  
-  span {
-    font-size: 13px;
-    color: #999;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
+.pagination {
+  margin-top: 30px;
+  text-align: center;
 }
 </style>

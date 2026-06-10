@@ -43,7 +43,12 @@ public class JwtUtils {
 
     public String getUserIdFromToken(String token) {
         Claims claims = parseToken(token);
-        return claims.get("userId", String.class);
+        // 优先从 userId 字段获取，如果不存在则从 sub 字段获取
+        String userId = claims.get("userId", String.class);
+        if (userId == null) {
+            userId = claims.getSubject();
+        }
+        return userId;
     }
 
     public boolean validateToken(String token) {

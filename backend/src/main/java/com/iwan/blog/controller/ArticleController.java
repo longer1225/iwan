@@ -31,16 +31,17 @@ public class ArticleController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) String tagId,
-            @RequestParam(required = false) Integer status) {
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "time") String sortBy) {
 
         Page<Article> page = new Page<>(pageNum, pageSize);
-        IPage<Article> result = articleService.list(page, keyword, categoryId, tagId, status);
+        IPage<Article> result = articleService.list(page, keyword, categoryId, tagId, status, sortBy);
 
         // 转换文章列表为响应格式
         java.util.List<Map<String, Object>> records = new java.util.ArrayList<>();
         for (Article article : result.getRecords()) {
             Map<String, Object> item = new HashMap<>();
-            item.put("id", article.getId());
+            item.put("id", article.getId().toString());  // 转换为字符串避免JS精度问题
             item.put("title", article.getDoc() != null ? extractFromDoc(article.getDoc(), "title") : "");
             item.put("summary", article.getDoc() != null ? extractFromDoc(article.getDoc(), "summary") : "");
             item.put("cover", article.getDoc() != null ? extractFromDoc(article.getDoc(), "cover") : "");
@@ -57,24 +58,35 @@ public class ArticleController {
     }
 
     @GetMapping("/{id}")
-    public ResponseVO<Map<String, Object>> detail(@PathVariable Long id) {
-        Article article = articleService.getById(id);
+    public ResponseVO<Map<String, Object>> detail(@PathVariable String id) {
+        if (id == null || id.trim().isEmpty() || "undefined".equals(id)) {
+            return ResponseVO.badRequest("文章ID无效");
+        }
+        
+        Long articleId;
+        try {
+            articleId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return ResponseVO.badRequest("文章ID格式错误");
+        }
+        
+        Article article = articleService.getById(articleId);
         if (article == null) {
             return ResponseVO.notFound("文章不存在");
         }
 
         Map<String, Object> result = new HashMap<>();
         result.put("id", article.getId());
-        result.put("title", "文章标题");
-        result.put("content", "<p>文章内容</p>");
-        result.put("authorName", "作者");
-        result.put("authorAvatar", "");
-        result.put("categoryName", "分类");
-        result.put("tags", new String[]{});
-        result.put("readCount", 0);
-        result.put("likeCount", 0);
-        result.put("collectCount", 0);
-        result.put("commentCount", 0);
+        result.put("title", article.getDoc() != null ? extractFromDoc(article.getDoc(), "title") : "");
+        result.put("content", article.getDoc() != null ? extractFromDoc(article.getDoc(), "content") : "");
+        result.put("summary", article.getDoc() != null ? extractFromDoc(article.getDoc(), "summary") : "");
+        result.put("cover", article.getDoc() != null ? extractFromDoc(article.getDoc(), "cover") : "");
+        result.put("authorName", article.getDoc() != null ? extractFromDoc(article.getDoc(), "authorName") : "");
+        result.put("authorAvatar", article.getDoc() != null ? extractFromDoc(article.getDoc(), "authorAvatar") : "");
+        result.put("readCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "readCount", 0) : 0);
+        result.put("likeCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "likeCount", 0) : 0);
+        result.put("collectCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "collectCount", 0) : 0);
+        result.put("commentCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "commentCount", 0) : 0);
         result.put("createTime", article.getCreateTime());
 
         return ResponseVO.success(result);
@@ -122,7 +134,7 @@ public class ArticleController {
         java.util.List<Map<String, Object>> records = new java.util.ArrayList<>();
         for (Article article : result.getRecords()) {
             Map<String, Object> item = new HashMap<>();
-            item.put("id", article.getId());
+            item.put("id", article.getId().toString());  // 转换为字符串避免JS精度问题
             item.put("title", article.getDoc() != null ? extractFromDoc(article.getDoc(), "title") : "");
             item.put("summary", article.getDoc() != null ? extractFromDoc(article.getDoc(), "summary") : "");
             item.put("cover", article.getDoc() != null ? extractFromDoc(article.getDoc(), "cover") : "");

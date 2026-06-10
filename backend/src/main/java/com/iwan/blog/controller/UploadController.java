@@ -20,20 +20,25 @@ public class UploadController {
 
     private String uploadDir;
     private static final String AVATAR_DIR = "avatar/";
+    private static final String IMAGE_DIR = "images/";
+    private static final String VIDEO_DIR = "videos/";
+    private static final String AUDIO_DIR = "audios/";
 
     @PostConstruct
     public void init() {
-        // 使用项目根目录的绝对路径
         String projectDir = System.getProperty("user.dir");
         uploadDir = projectDir + File.separator + "uploads" + File.separator;
         
-        // 确保上传目录存在
         try {
-            Path path = Paths.get(uploadDir + AVATAR_DIR);
-            if (!Files.exists(path)) {
-                Files.createDirectories(path);
-            }
-            System.out.println("上传目录: " + uploadDir + AVATAR_DIR);
+            Path avatarPath = Paths.get(uploadDir + AVATAR_DIR);
+            if (!Files.exists(avatarPath)) Files.createDirectories(avatarPath);
+            Path imagePath = Paths.get(uploadDir + IMAGE_DIR);
+            if (!Files.exists(imagePath)) Files.createDirectories(imagePath);
+            Path videoPath = Paths.get(uploadDir + VIDEO_DIR);
+            if (!Files.exists(videoPath)) Files.createDirectories(videoPath);
+            Path audioPath = Paths.get(uploadDir + AUDIO_DIR);
+            if (!Files.exists(audioPath)) Files.createDirectories(audioPath);
+            System.out.println("上传目录初始化完成: " + uploadDir);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -41,53 +46,137 @@ public class UploadController {
 
     @PostMapping("/avatar")
     public ResponseVO<Map<String, Object>> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            return ResponseVO.error("请选择要上传的文件");
-        }
-
-        // 检查文件类型
+        if (file.isEmpty()) return ResponseVO.error("请选择要上传的文件");
+        
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             return ResponseVO.error("请上传图片文件");
         }
-
-        // 检查文件大小（最大5MB）
         if (file.getSize() > 5 * 1024 * 1024) {
             return ResponseVO.error("图片大小不能超过5MB");
         }
 
         try {
-            // 生成唯一文件名
-            String originalFilename = file.getOriginalFilename();
-            String extension = ".png";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                String ext = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
-                if (ext.equals(".jpg") || ext.equals(".jpeg") || ext.equals(".png") || ext.equals(".gif")) {
-                    extension = ext;
-                }
-            }
+            String extension = getExtension(file.getOriginalFilename(), ".png");
             String newFilename = UUID.randomUUID().toString() + extension;
             String filePath = uploadDir + AVATAR_DIR + newFilename;
-
-            // 确保目录存在
+            
             File dest = new File(filePath);
-            if (!dest.getParentFile().exists()) {
-                dest.getParentFile().mkdirs();
-            }
-
-            // 保存文件
+            if (!dest.getParentFile().exists()) dest.getParentFile().mkdirs();
             file.transferTo(dest);
 
-            // 返回文件URL
             String fileUrl = "/uploads/avatar/" + newFilename;
             Map<String, Object> result = new HashMap<>();
             result.put("url", fileUrl);
             result.put("filename", newFilename);
-
             return ResponseVO.success(result);
         } catch (IOException e) {
             e.printStackTrace();
             return ResponseVO.error("文件上传失败: " + e.getMessage());
         }
+    }
+
+    @PostMapping("/image")
+    public ResponseVO<Map<String, Object>> uploadImage(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) return ResponseVO.error("请选择要上传的文件");
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseVO.error("请上传图片文件");
+        }
+        if (file.getSize() > 10 * 1024 * 1024) {
+            return ResponseVO.error("图片大小不能超过10MB");
+        }
+
+        try {
+            String extension = getExtension(file.getOriginalFilename(), ".png");
+            String newFilename = UUID.randomUUID().toString() + extension;
+            String filePath = uploadDir + IMAGE_DIR + newFilename;
+            
+            File dest = new File(filePath);
+            if (!dest.getParentFile().exists()) dest.getParentFile().mkdirs();
+            file.transferTo(dest);
+
+            String fileUrl = "/uploads/images/" + newFilename;
+            Map<String, Object> result = new HashMap<>();
+            result.put("url", fileUrl);
+            result.put("filename", newFilename);
+            return ResponseVO.success(result);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseVO.error("文件上传失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/video")
+    public ResponseVO<Map<String, Object>> uploadVideo(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) return ResponseVO.error("请选择要上传的文件");
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("video/")) {
+            return ResponseVO.error("请上传视频文件");
+        }
+        if (file.getSize() > 50 * 1024 * 1024) {
+            return ResponseVO.error("视频大小不能超过50MB");
+        }
+
+        try {
+            String extension = getExtension(file.getOriginalFilename(), ".mp4");
+            String newFilename = UUID.randomUUID().toString() + extension;
+            String filePath = uploadDir + VIDEO_DIR + newFilename;
+            
+            File dest = new File(filePath);
+            if (!dest.getParentFile().exists()) dest.getParentFile().mkdirs();
+            file.transferTo(dest);
+
+            String fileUrl = "/uploads/videos/" + newFilename;
+            Map<String, Object> result = new HashMap<>();
+            result.put("url", fileUrl);
+            result.put("filename", newFilename);
+            return ResponseVO.success(result);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseVO.error("文件上传失败: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/audio")
+    public ResponseVO<Map<String, Object>> uploadAudio(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) return ResponseVO.error("请选择要上传的文件");
+        
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("audio/")) {
+            return ResponseVO.error("请上传音频文件");
+        }
+        if (file.getSize() > 20 * 1024 * 1024) {
+            return ResponseVO.error("音频大小不能超过20MB");
+        }
+
+        try {
+            String extension = getExtension(file.getOriginalFilename(), ".mp3");
+            String newFilename = UUID.randomUUID().toString() + extension;
+            String filePath = uploadDir + AUDIO_DIR + newFilename;
+            
+            File dest = new File(filePath);
+            if (!dest.getParentFile().exists()) dest.getParentFile().mkdirs();
+            file.transferTo(dest);
+
+            String fileUrl = "/uploads/audios/" + newFilename;
+            Map<String, Object> result = new HashMap<>();
+            result.put("url", fileUrl);
+            result.put("filename", newFilename);
+            return ResponseVO.success(result);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseVO.error("文件上传失败: " + e.getMessage());
+        }
+    }
+
+    private String getExtension(String filename, String defaultExt) {
+        if (filename != null && filename.contains(".")) {
+            String ext = filename.substring(filename.lastIndexOf(".")).toLowerCase();
+            return ext;
+        }
+        return defaultExt;
     }
 }

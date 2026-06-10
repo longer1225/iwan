@@ -1,5 +1,6 @@
 package com.iwan.blog.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.iwan.blog.dto.ArticleDTO;
@@ -41,6 +42,7 @@ public class ArticleServiceImpl implements ArticleService {
         doc.put("likeCount", 0);
         doc.put("collectCount", 0);
         doc.put("commentCount", 0);
+        doc.put("authorName", "");
 
         try {
             article.setDoc(objectMapper.writeValueAsString(doc));
@@ -89,12 +91,42 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
-    public IPage<Article> list(Page<Article> page, String keyword, String categoryId, String tagId, Integer status) {
-        return articleMapper.selectPage(page, null);
+    public IPage<Article> list(Page<Article> page, String keyword, String categoryId, String tagId, Integer status, String sortBy) {
+        LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Article::getIsDeleted, false);
+        
+        // 筛选条件
+        if (status != null) {
+            wrapper.apply("doc->>'status' = {0}", status.toString());
+        }
+        if (categoryId != null && !categoryId.isEmpty()) {
+            wrapper.apply("doc->>'categoryId' = {0}", categoryId);
+        }
+        if (tagId != null && !tagId.isEmpty()) {
+            wrapper.apply("doc->'tagList' ? {0}", tagId);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.apply("doc->>'title' LIKE {0}", "%" + keyword + "%");
+        }
+        
+        // 排序
+        if ("hot".equals(sortBy)) {
+            // 热度排序：综合阅读、点赞、收藏、评论
+            wrapper.apply("ORDER BY (COALESCE((doc->>'readCount')::int, 0) + COALESCE((doc->>'likeCount')::int, 0) * 2 + COALESCE((doc->>'collectCount')::int, 0) * 3 + COALESCE((doc->>'commentCount')::int, 0) * 4) DESC");
+        } else {
+            // 默认按时间排序
+            wrapper.orderByDesc(Article::getCreateTime);
+        }
+        
+        return articleMapper.selectPage(page, wrapper);
     }
 
     @Override
     public IPage<Article> getUserArticles(Page<Article> page, Long userId) {
-        return articleMapper.selectPage(page, null);
+        LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Article::getIsDeleted, false)
+               .apply("doc->>'authorId' = {0}", userId.toString())
+               .orderByDesc(Article::getCreateTime);
+        return articleMapper.selectPage(page, wrapper);
     }
 }

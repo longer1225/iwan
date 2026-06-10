@@ -34,6 +34,8 @@ public class CommentServiceImpl implements CommentService {
         doc.put("parentId", dto.getParentId());
         doc.put("content", dto.getContent());
         doc.put("userId", userId);
+        doc.put("userName", dto.getUserName() != null ? dto.getUserName() : "匿名用户");
+        doc.put("userAvatar", dto.getUserAvatar() != null ? dto.getUserAvatar() : "");
         doc.put("anonymous", dto.getAnonymous());
         doc.put("likeCount", 0);
 
@@ -60,6 +62,10 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public IPage<Comment> list(Page<Comment> page, Long articleId) {
-        return commentMapper.selectPage(page, null);
+        return commentMapper.selectPage(page, 
+            com.baomidou.mybatisplus.core.toolkit.Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getIsDeleted, false)
+                .apply("doc->>'articleId' = {0}", articleId.toString())
+                .orderByDesc(Comment::getCreateTime));
     }
 }

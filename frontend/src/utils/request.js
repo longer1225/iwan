@@ -4,6 +4,10 @@ import { ElMessage } from 'element-plus'
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/iwan/api/v1'
 
+console.log('=== Request Config ===')
+console.log('baseURL:', baseURL)
+console.log('======================')
+
 const instance = axios.create({
   baseURL,
   timeout: 30000,
@@ -15,18 +19,36 @@ const instance = axios.create({
 instance.interceptors.request.use(
   (config) => {
     const userStore = useUserStore()
+    console.log('=== Request Interceptor ===')
+    console.log('URL:', config.url)
+    console.log('Method:', config.method)
+    console.log('Headers:', JSON.stringify(config.headers))
+    console.log('Params:', JSON.stringify(config.params))
+    console.log('Data:', JSON.stringify(config.data))
+    console.log('Token exists:', !!userStore.token)
+    console.log('===========================')
+    
     if (userStore.token) {
       config.headers.Authorization = `Bearer ${userStore.token}`
     }
     return config
   },
   (error) => {
+    console.error('=== Request Error ===')
+    console.error(error)
+    console.log('=====================')
     return Promise.reject(error)
   }
 )
 
 instance.interceptors.response.use(
   (response) => {
+    console.log('=== Response Interceptor ===')
+    console.log('Status:', response.status)
+    console.log('URL:', response.config.url)
+    console.log('Data:', JSON.stringify(response.data))
+    console.log('============================')
+    
     const { code, msg, data } = response.data
     if (code === 200) {
       return response.data
@@ -36,6 +58,13 @@ instance.interceptors.response.use(
     }
   },
   (error) => {
+    console.error('=== Response Error ===')
+    console.error('URL:', error.config?.url)
+    console.error('Status:', error.response?.status)
+    console.error('Data:', JSON.stringify(error.response?.data))
+    console.error('Message:', error.message)
+    console.log('======================')
+    
     const { response } = error
     if (response) {
       const { status, data } = response

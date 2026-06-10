@@ -17,5 +17,9 @@ public class CommentDTO {
 
     private Boolean anonymous = false;
 
+    private String userName;
+
+    private String userAvatar;
+
     private String commentExt;
 }

@@ -28,13 +28,24 @@ public class CommentController {
     public ResponseVO<PageVO<Map<String, Object>>> list(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
-            @RequestParam Long articleId) {
+            @RequestParam String articleId) {
 
         Page<Comment> page = new Page<>(pageNum, pageSize);
-        IPage<Comment> result = commentService.list(page, articleId);
+        IPage<Comment> result = commentService.list(page, Long.parseLong(articleId));
+
+        java.util.List<Map<String, Object>> records = new java.util.ArrayList<>();
+        for (Comment comment : result.getRecords()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", comment.getId().toString());
+            item.put("content", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "content") : "");
+            item.put("userName", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "userName") : "匿名用户");
+            item.put("userAvatar", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "userAvatar") : "");
+            item.put("createTime", comment.getCreateTime());
+            records.add(item);
+        }
 
         return ResponseVO.success(PageVO.of(result.getTotal(), result.getPages(),
-                result.getCurrent(), result.getSize(), null));
+                result.getCurrent(), result.getSize(), records));
     }
 
     @PostMapping
@@ -61,5 +72,19 @@ public class CommentController {
     public ResponseVO<Void> delete(@PathVariable Long id) {
         commentService.delete(id);
         return ResponseVO.success();
+    }
+
+    private String extractFromDoc(String doc, String key) {
+        if (doc == null || doc.isEmpty()) {
+            return "";
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            java.util.Map<String, Object> map = mapper.readValue(doc, java.util.Map.class);
+            Object value = map.get(key);
+            return value != null ? value.toString() : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

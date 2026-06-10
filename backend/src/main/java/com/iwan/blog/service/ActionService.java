@@ -13,4 +13,8 @@ public interface ActionService {
     PageVO<Map<String, Object>> getUserLikes(Long userId, Integer pageNum, Integer pageSize);
 
     PageVO<Map<String, Object>> getUserCollects(Long userId, Integer pageNum, Integer pageSize);
+
+    boolean isLiked(Long userId, String targetId, String targetType);
+
+    boolean isCollected(Long userId, String targetId, String targetType);
 }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
   const isDark = ref(false)
@@ -27,14 +27,6 @@ export const useThemeStore = defineStore('theme', () => {
   const toggleTheme = () => {
     setDarkMode(!isDark.value)
   }
-  
-  watch(isDark, (val) => {
-    if (val) {
-      document.documentElement.classList.add('dark-theme')
-    } else {
-      document.documentElement.classList.remove('dark-theme')
-    }
-  }, { immediate: true })
   
   // 初始化时加载主题
   initTheme()

@@ -249,7 +249,7 @@
                 <h4>暗黑模式</h4>
                 <p>切换深色/浅色主题</p>
               </div>
-              <el-switch v-model="systemForm.darkMode" />
+              <el-switch v-model="systemForm.darkMode" @change="handleDarkModeChange" />
             </div>
             <div class="setting-item">
               <div class="setting-info">
@@ -407,22 +407,29 @@ const loadMyArticles = async () => {
 
 const loadLikedArticles = async () => {
   try {
+    console.log('Loading liked articles...')
     const response = await actionApi.getLikes({ pageNum: 1, pageSize: 20 })
+    console.log('Liked articles response:', JSON.stringify(response, null, 2))
     if (response.code === 200) {
       likedArticles.value = response.data.records
       likeCount.value = response.data.total
+      console.log('Loaded liked articles count:', likedArticles.value.length)
     }
   } catch (error) {
     console.error('加载点赞失败:', error)
+    console.error('Error response:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message)
   }
 }
 
 const loadCollectedArticles = async () => {
   try {
+    console.log('Loading collected articles...')
     const response = await actionApi.getCollects({ pageNum: 1, pageSize: 20 })
+    console.log('Collected articles response:', response)
     if (response.code === 200) {
       collectedArticles.value = response.data.records
       collectCount.value = response.data.total
+      console.log('Loaded collected articles:', collectedArticles.value)
     }
   } catch (error) {
     console.error('加载收藏失败:', error)
@@ -596,11 +603,12 @@ const savePrivacy = () => {
   alert('隐私设置已保存！')
 }
 
+// 立即处理深色模式切换
+const handleDarkModeChange = (value) => {
+  themeStore.setDarkMode(value)
+}
+
 const saveSystem = () => {
-  // 直接设置主题状态
-  if (systemForm.darkMode !== themeStore.isDark) {
-    themeStore.setDarkMode(systemForm.darkMode)
-  }
   // 保存其他设置到本地存储
   localStorage.setItem('commentNotify', String(systemForm.commentNotify))
   localStorage.setItem('likeNotify', String(systemForm.likeNotify))
@@ -610,6 +618,7 @@ const saveSystem = () => {
 }
 
 onMounted(() => {
+  console.log('=== Profile onMounted ===')
   loadUserInfo()
   loadMyArticles()
   loadLikedArticles()
@@ -621,6 +630,17 @@ onMounted(() => {
   systemForm.likeNotify = localStorage.getItem('likeNotify') === 'true' || true
   systemForm.friendNotify = localStorage.getItem('friendNotify') === 'true' || true
   systemForm.aiNotify = localStorage.getItem('aiNotify') === 'true' || true
+  
+  console.log('=== Profile onMounted completed ===')
+  
+  // 监听路由变化，当从其他页面返回时刷新数据
+  router.afterEach((to, from) => {
+    if (to.path === '/profile' || to.path.startsWith('/profile/')) {
+      console.log('=== Refreshing profile data after navigation ===')
+      loadLikedArticles()
+      loadCollectedArticles()
+    }
+  })
 })
 </script>
 
