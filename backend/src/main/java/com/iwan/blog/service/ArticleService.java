@@ -18,4 +18,6 @@ public interface ArticleService {
     IPage<Article> list(Page<Article> page, String keyword, String categoryId, String tagId, Integer status, String sortBy);
 
     IPage<Article> getUserArticles(Page<Article> page, Long userId);
+
+    void updateReadCount(Long articleId);
 }

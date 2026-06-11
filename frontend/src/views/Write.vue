@@ -134,6 +134,15 @@
           </div>
         </div>
         
+        <!-- 匿名发布选项 -->
+        <div class="anonymous-section">
+          <label class="anonymous-label">
+            <el-switch v-model="articleForm.anonymous" />
+            <span>匿名发布</span>
+          </label>
+          <p class="anonymous-hint">开启后将以匿名用户身份发布文章，不显示您的头像和昵称</p>
+        </div>
+        
         <!-- 封面图片 -->
         <div class="cover-section">
           <label>封面图片</label>
@@ -205,7 +214,8 @@ const articleForm = reactive({
   categoryId: '',
   tagList: [],
   cover: '',
-  status: 1
+  status: 1,
+  anonymous: false
 })
 
 const tagInput = ref('')
@@ -418,7 +428,8 @@ const submitArticle = async () => {
       categoryId: articleForm.categoryId,
       tagList: articleForm.tagList,
       cover: articleForm.cover,
-      status: articleForm.status
+      status: articleForm.status,
+      anonymous: articleForm.anonymous
     })
     
     if (response.code === 200) {
@@ -683,6 +694,28 @@ if (draft) {
 
 .cover-section {
   margin-top: 20px;
+}
+
+.anonymous-section {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: var(--bg-primary, #f5f5f5);
+  border-radius: 8px;
+}
+
+.anonymous-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+.anonymous-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
 }
 
 .cover-upload {

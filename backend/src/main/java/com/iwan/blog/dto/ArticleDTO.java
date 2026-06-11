@@ -23,4 +23,6 @@ public class ArticleDTO {
     private String cover;
 
     private String articleExt;
+    
+    private Boolean anonymous = false;
 }

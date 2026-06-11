@@ -4,9 +4,13 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.iwan.blog.dto.ArticleDTO;
 import com.iwan.blog.entity.Article;
+import com.iwan.blog.entity.User;
+import com.iwan.blog.mapper.UserMapper;
 import com.iwan.blog.service.ArticleService;
 import com.iwan.blog.vo.PageVO;
 import com.iwan.blog.vo.ResponseVO;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +23,13 @@ import java.util.Map;
 public class ArticleController {
 
     private final ArticleService articleService;
+    private final UserMapper userMapper;
+    private final ObjectMapper objectMapper;
 
-    public ArticleController(ArticleService articleService) {
+    public ArticleController(ArticleService articleService, UserMapper userMapper, ObjectMapper objectMapper) {
         this.articleService = articleService;
+        this.userMapper = userMapper;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -75,14 +83,74 @@ public class ArticleController {
             return ResponseVO.notFound("文章不存在");
         }
 
+        // 增加阅读计数
+        articleService.updateReadCount(articleId);
+        
+        // 更新计数后重新获取文章以获取最新数据
+        article = articleService.getById(articleId);
+
         Map<String, Object> result = new HashMap<>();
         result.put("id", article.getId());
         result.put("title", article.getDoc() != null ? extractFromDoc(article.getDoc(), "title") : "");
         result.put("content", article.getDoc() != null ? extractFromDoc(article.getDoc(), "content") : "");
         result.put("summary", article.getDoc() != null ? extractFromDoc(article.getDoc(), "summary") : "");
         result.put("cover", article.getDoc() != null ? extractFromDoc(article.getDoc(), "cover") : "");
-        result.put("authorName", article.getDoc() != null ? extractFromDoc(article.getDoc(), "authorName") : "");
-        result.put("authorAvatar", article.getDoc() != null ? extractFromDoc(article.getDoc(), "authorAvatar") : "");
+        
+        // 处理作者信息
+        String authorName = "";
+        String authorAvatar = "";
+        
+        if (article.getDoc() != null) {
+            try {
+                Map<String, Object> docMap = objectMapper.readValue(article.getDoc(), new TypeReference<Map<String, Object>>() {});
+                
+                // 检查是否匿名发布
+                Boolean isAnonymous = docMap.containsKey("anonymous") ? (Boolean) docMap.get("anonymous") : false;
+                
+                if (Boolean.TRUE.equals(isAnonymous)) {
+                    // 匿名发布，使用匿名用户信息
+                    authorName = "匿名用户";
+                    authorAvatar = "";
+                } else {
+                    // 非匿名发布，获取作者信息
+                    Object authorIdObj = docMap.get("authorId");
+                    if (authorIdObj != null) {
+                        Long authorId = null;
+                        if (authorIdObj instanceof Long) {
+                            authorId = (Long) authorIdObj;
+                        } else if (authorIdObj instanceof String) {
+                            authorId = Long.parseLong((String) authorIdObj);
+                        }
+                        
+                        if (authorId != null) {
+                            User author = userMapper.selectById(authorId);
+                            if (author != null && author.getDoc() != null) {
+                                Map<String, Object> authorDoc = objectMapper.readValue(author.getDoc(), new TypeReference<Map<String, Object>>() {});
+                                authorName = (String) authorDoc.get("nickname");
+                                authorAvatar = (String) authorDoc.get("avatar");
+                            }
+                        }
+                    }
+                    
+                    // 如果没有获取到作者信息，使用默认值
+                    if (authorName == null || authorName.isEmpty()) {
+                        authorName = "匿名用户";
+                    }
+                    if (authorAvatar == null) {
+                        authorAvatar = "";
+                    }
+                }
+            } catch (Exception e) {
+                authorName = "匿名用户";
+                authorAvatar = "";
+            }
+        } else {
+            authorName = "匿名用户";
+            authorAvatar = "";
+        }
+        
+        result.put("authorName", authorName);
+        result.put("authorAvatar", authorAvatar);
         result.put("readCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "readCount", 0) : 0);
         result.put("likeCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "likeCount", 0) : 0);
         result.put("collectCount", article.getDoc() != null ? getIntFromDoc(article.getDoc(), "collectCount", 0) : 0);

@@ -42,7 +42,17 @@ public class ArticleServiceImpl implements ArticleService {
         doc.put("likeCount", 0);
         doc.put("collectCount", 0);
         doc.put("commentCount", 0);
-        doc.put("authorName", "");
+        
+        // 判断是否匿名发布
+        if (Boolean.TRUE.equals(dto.getAnonymous())) {
+            doc.put("authorName", "匿名用户");
+            doc.put("authorAvatar", "");
+            doc.put("anonymous", true);
+        } else {
+            doc.put("authorName", "");
+            doc.put("authorAvatar", "");
+            doc.put("anonymous", false);
+        }
 
         try {
             article.setDoc(objectMapper.writeValueAsString(doc));
@@ -128,5 +138,22 @@ public class ArticleServiceImpl implements ArticleService {
                .apply("doc->>'authorId' = {0}", userId.toString())
                .orderByDesc(Article::getCreateTime);
         return articleMapper.selectPage(page, wrapper);
+    }
+
+    @Override
+    @Transactional
+    public void updateReadCount(Long articleId) {
+        Article article = articleMapper.selectById(articleId);
+        if (article != null && article.getDoc() != null) {
+            try {
+                Map<String, Object> doc = objectMapper.readValue(article.getDoc(), Map.class);
+                int currentCount = doc.containsKey("readCount") ? ((Number) doc.get("readCount")).intValue() : 0;
+                doc.put("readCount", currentCount + 1);
+                article.setDoc(objectMapper.writeValueAsString(doc));
+                articleMapper.updateById(article);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("更新阅读计数失败", e);
+            }
+        }
     }
 }

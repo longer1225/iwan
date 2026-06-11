@@ -1,7 +1,10 @@
 <template>
   <div class="square-container">
-    <header class="header">
-      <div class="logo">iwan</div>
+    <header class="header glass-effect">
+      <div class="logo-container">
+        <div class="logo">iwan</div>
+        <span class="logo-subtitle">分享你的故事</span>
+      </div>
       <div class="search-box">
         <el-input 
           v-model="searchKeyword" 
@@ -13,7 +16,7 @@
       </div>
       <div class="header-right">
         <el-button v-if="!isLoggedIn" type="primary" @click="goToLogin">登录</el-button>
-        <el-button v-else type="success" @click="goToWrite">写文章</el-button>
+        <el-button v-else class="gradient-btn" @click="goToWrite">写文章</el-button>
       </div>
     </header>
     
@@ -261,7 +264,7 @@ onMounted(() => {
 <style scoped>
 .square-container {
   min-height: 100vh;
-  background-color: var(--bg-primary, #f5f5f5);
+  background-color: var(--bg-primary);
   padding-bottom: 80px;
 }
 
@@ -270,81 +273,102 @@ onMounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
-  background: var(--bg-secondary, white);
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 0 24px;
   z-index: 100;
 }
 
+.logo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .logo {
-  font-size: 24px;
-  font-weight: bold;
-  color: #667eea;
+  font-size: 26px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-gradient-1), var(--accent-gradient-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-subtitle {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }
 
 .search-box {
   flex: 1;
-  max-width: 500px;
-  margin: 0 40px;
+  max-width: 520px;
+  margin: 0 48px;
 }
 
 .header-right {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .content-area {
   display: flex;
-  padding: 80px 20px 20px;
-  max-width: 1400px;
+  padding: 88px 24px 24px;
+  max-width: 1440px;
   margin: 0 auto;
-  gap: 20px;
+  gap: 24px;
 }
 
 .sidebar {
-  width: 240px;
+  width: 250px;
   flex-shrink: 0;
 }
 
 .section {
-  background: var(--bg-secondary, white);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 .section h3 {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary, #333);
-  margin-bottom: 12px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-left: 8px;
+  border-left: 3px solid var(--accent-color);
 }
 
 .category-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .category-item {
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
   
   &:hover {
-    background-color: var(--hover-bg, #f5f5f5);
+    background-color: var(--hover-bg);
+    padding-left: 18px;
   }
   
   &.active {
-    background-color: #667eea;
-    color: white;
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.15), rgba(0, 242, 254, 0.15));
+    color: var(--accent-color);
+    font-weight: 500;
+    padding-left: 18px;
   }
 }
 
@@ -356,12 +380,21 @@ onMounted(() => {
 
 .tag-list .el-tag {
   cursor: pointer;
-  transition: all 0.3s;
-}
-
-.tag-list .el-tag.active {
-  background-color: #667eea;
-  color: white;
+  transition: all 0.25s ease;
+  background-color: var(--bg-tertiary);
+  border: none;
+  color: var(--text-secondary);
+  
+  &:hover {
+    transform: translateY(-2px);
+    background-color: var(--hover-bg);
+  }
+  
+  &.active {
+    background: linear-gradient(135deg, var(--accent-gradient-1), var(--accent-gradient-2));
+    color: white;
+    transform: translateY(-2px);
+  }
 }
 
 .main-content {
@@ -373,63 +406,75 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .sort-tabs {
   display: flex;
   gap: 4px;
-  background-color: var(--bg-secondary, #f5f5f5);
+  background-color: var(--bg-tertiary);
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .sort-tabs button {
-  padding: 8px 20px;
+  padding: 10px 24px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: calc(var(--radius-sm) - 2px);
   font-size: 14px;
-  color: var(--text-secondary, #666);
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.25s ease;
+  
+  &:hover {
+    background-color: var(--hover-bg);
+  }
   
   &.active {
-    background-color: var(--bg-primary, white);
-    color: #667eea;
-    font-weight: 500;
+    background-color: var(--bg-secondary);
+    color: var(--accent-color);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
   }
 }
 
 .result-count {
   font-size: 14px;
-  color: var(--text-tertiary, #999);
+  color: var(--text-tertiary);
+  font-weight: 500;
 }
 
-/* 小红书风格网格布局 */
+/* Instagram风格网格布局 */
 .article-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 24px;
 }
 
 .article-card {
   background: var(--bg-secondary, white);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
   &:hover {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-6px) scale(1.01);
   }
 }
 
 .article-cover-wrapper {
   position: relative;
   width: 100%;
-  padding-top: 100%; /* 正方形比例 */
+  padding-top: 100%; /* 正方形比例 - Instagram风格 */
 }
 
 .article-cover {
@@ -438,7 +483,7 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-gradient-1) 0%, var(--accent-gradient-2) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,12 +492,17 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.5s ease;
   }
   
   &.has-video {
     img {
-      filter: brightness(0.8);
+      filter: brightness(0.85);
     }
+  }
+  
+  &:hover img {
+    transform: scale(1.05);
   }
 }
 
@@ -461,8 +511,8 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 48px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 56px;
 }
 
 .video-overlay, .audio-overlay {
@@ -470,23 +520,29 @@ onMounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 60px;
-  height: 60px;
-  background: rgba(0, 0, 0, 0.6);
+  width: 68px;
+  height: 68px;
+  background: rgba(0, 0, 0, 0.7);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 24px;
+  font-size: 28px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+    background: rgba(0, 0, 0, 0.85);
+  }
   
   .el-icon-video-play {
-    margin-left: 4px;
+    margin-left: 5px;
   }
 }
 
 .audio-overlay {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .cover-footer {
@@ -494,67 +550,82 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  padding: 16px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
 }
 
 .stats {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
   color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   
   i {
-    font-size: 12px;
+    font-size: 14px;
   }
 }
 
 .article-info {
-  padding: 16px;
+  padding: 18px;
 }
 
 .article-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary, #333);
-  margin-bottom: 8px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .article-summary {
   font-size: 14px;
-  color: var(--text-secondary, #666);
-  line-height: 1.5;
+  color: var(--text-secondary);
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .author-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .author-info .avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  border: 2px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.author-info:hover .avatar {
+  border-color: var(--accent-color);
 }
 
 .author-name {
-  font-size: 13px;
-  color: var(--text-secondary, #666);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 0.3s ease;
+}
+
+.author-info:hover .author-name {
+  color: var(--accent-color);
 }
 
 .empty-state {

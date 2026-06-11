@@ -9,6 +9,7 @@ import com.iwan.blog.mapper.UserMapper;
 import com.iwan.blog.service.ActionService;
 import com.iwan.blog.vo.PageVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,6 +45,8 @@ public class ActionServiceImpl implements ActionService {
     @Override
     @Transactional
     public void toggleLike(Long userId, String targetId, String targetType) {
+        logger.info("===== toggleLike called - userId: {}, targetId: {}, targetType: {}", userId, targetId, targetType);
+        
         LambdaQueryWrapper<Action> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Action::getIsDeleted, false)
                 .apply("doc->>'userId' = {0}", userId.toString())
@@ -51,11 +54,21 @@ public class ActionServiceImpl implements ActionService {
                 .apply("doc->>'actionType' = 'LIKE'");
 
         Action existing = actionMapper.selectOne(wrapper);
+        logger.info("===== toggleLike existing record found: {}", existing != null);
 
         if (existing != null) {
-            existing.setIsDeleted(true);
-            actionMapper.updateById(existing);
+            logger.info("===== toggleLike deleting existing record, id: {}", existing.getId());
+            // 使用UpdateWrapper来强制更新is_deleted字段（MyBatis-Plus逻辑删除会忽略该字段）
+            LambdaUpdateWrapper<Action> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Action::getId, existing.getId())
+                    .set(Action::getIsDeleted, true);
+            int result = actionMapper.update(null, updateWrapper);
+            logger.info("===== toggleLike update result: {}", result);
+            
+            // 减少文章的点赞数
+            updateArticleLikeCount(Long.parseLong(targetId), -1);
         } else {
+            logger.info("===== toggleLike creating new record");
             Action action = new Action();
             Map<String, Object> doc = new HashMap<>();
             doc.put("userId", userId.toString());
@@ -65,6 +78,10 @@ public class ActionServiceImpl implements ActionService {
             try {
                 action.setDoc(objectMapper.writeValueAsString(doc));
                 actionMapper.insert(action);
+                logger.info("===== toggleLike created new record, id: {}", action.getId());
+                
+                // 增加文章的点赞数
+                updateArticleLikeCount(Long.parseLong(targetId), 1);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("创建点赞记录失败", e);
             }
@@ -74,6 +91,8 @@ public class ActionServiceImpl implements ActionService {
     @Override
     @Transactional
     public void toggleCollect(Long userId, String targetId, String targetType) {
+        logger.info("===== toggleCollect called - userId: {}, targetId: {}, targetType: {}", userId, targetId, targetType);
+        
         LambdaQueryWrapper<Action> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Action::getIsDeleted, false)
                 .apply("doc->>'userId' = {0}", userId.toString())
@@ -81,11 +100,21 @@ public class ActionServiceImpl implements ActionService {
                 .apply("doc->>'actionType' = 'COLLECT'");
 
         Action existing = actionMapper.selectOne(wrapper);
+        logger.info("===== toggleCollect existing record found: {}", existing != null);
 
         if (existing != null) {
-            existing.setIsDeleted(true);
-            actionMapper.updateById(existing);
+            logger.info("===== toggleCollect deleting existing record, id: {}", existing.getId());
+            // 使用UpdateWrapper来强制更新is_deleted字段（MyBatis-Plus逻辑删除会忽略该字段）
+            LambdaUpdateWrapper<Action> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Action::getId, existing.getId())
+                    .set(Action::getIsDeleted, true);
+            int result = actionMapper.update(null, updateWrapper);
+            logger.info("===== toggleCollect update result: {}", result);
+            
+            // 减少文章的收藏数
+            updateArticleCollectCount(Long.parseLong(targetId), -1);
         } else {
+            logger.info("===== toggleCollect creating new record");
             Action action = new Action();
             Map<String, Object> doc = new HashMap<>();
             doc.put("userId", userId.toString());
@@ -95,8 +124,52 @@ public class ActionServiceImpl implements ActionService {
             try {
                 action.setDoc(objectMapper.writeValueAsString(doc));
                 actionMapper.insert(action);
+                logger.info("===== toggleCollect created new record, id: {}", action.getId());
+                
+                // 增加文章的收藏数
+                updateArticleCollectCount(Long.parseLong(targetId), 1);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("创建收藏记录失败", e);
+            }
+        }
+    }
+
+    /**
+     * 更新文章点赞数
+     */
+    private void updateArticleLikeCount(Long articleId, int delta) {
+        Article article = articleMapper.selectById(articleId);
+        if (article != null && article.getDoc() != null) {
+            try {
+                Map<String, Object> doc = objectMapper.readValue(article.getDoc(), new TypeReference<Map<String, Object>>() {});
+                int currentCount = doc.containsKey("likeCount") ? ((Number) doc.get("likeCount")).intValue() : 0;
+                currentCount = Math.max(0, currentCount + delta);
+                doc.put("likeCount", currentCount);
+                article.setDoc(objectMapper.writeValueAsString(doc));
+                articleMapper.updateById(article);
+                logger.info("===== Updated likeCount for article {}: {}", articleId, currentCount);
+            } catch (JsonProcessingException e) {
+                logger.error("Failed to update likeCount for article {}", articleId, e);
+            }
+        }
+    }
+
+    /**
+     * 更新文章收藏数
+     */
+    private void updateArticleCollectCount(Long articleId, int delta) {
+        Article article = articleMapper.selectById(articleId);
+        if (article != null && article.getDoc() != null) {
+            try {
+                Map<String, Object> doc = objectMapper.readValue(article.getDoc(), new TypeReference<Map<String, Object>>() {});
+                int currentCount = doc.containsKey("collectCount") ? ((Number) doc.get("collectCount")).intValue() : 0;
+                currentCount = Math.max(0, currentCount + delta);
+                doc.put("collectCount", currentCount);
+                article.setDoc(objectMapper.writeValueAsString(doc));
+                articleMapper.updateById(article);
+                logger.info("===== Updated collectCount for article {}: {}", articleId, currentCount);
+            } catch (JsonProcessingException e) {
+                logger.error("Failed to update collectCount for article {}", articleId, e);
             }
         }
     }
@@ -265,13 +338,18 @@ public class ActionServiceImpl implements ActionService {
 
     @Override
     public boolean isLiked(Long userId, String targetId, String targetType) {
+        logger.info("===== isLiked called - userId: {}, targetId: {}, targetType: {}, targetId type: {}", 
+                userId, targetId, targetType, targetId != null ? targetId.getClass().getName() : "null");
+        
         LambdaQueryWrapper<Action> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Action::getIsDeleted, false)
                 .apply("doc->>'userId' = {0}", userId.toString())
                 .apply("doc->>'targetId' = {0}", targetId)
                 .apply("doc->>'actionType' = 'LIKE'");
 
-        return actionMapper.exists(wrapper);
+        boolean exists = actionMapper.exists(wrapper);
+        logger.info("===== isLiked result: {}", exists);
+        return exists;
     }
 
     @Override

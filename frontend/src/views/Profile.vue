@@ -437,6 +437,8 @@ const loadCollectedArticles = async () => {
 }
 
 const goToDetail = (id) => {
+  // 保存当前活动菜单状态
+  sessionStorage.setItem('profileActiveMenu', activeMenu.value)
   router.push(`/article/${id}`)
 }
 
@@ -619,6 +621,14 @@ const saveSystem = () => {
 
 onMounted(() => {
   console.log('=== Profile onMounted ===')
+  
+  // 恢复之前保存的菜单状态
+  const savedMenu = sessionStorage.getItem('profileActiveMenu')
+  if (savedMenu) {
+    activeMenu.value = savedMenu
+    sessionStorage.removeItem('profileActiveMenu')
+  }
+  
   loadUserInfo()
   loadMyArticles()
   loadLikedArticles()

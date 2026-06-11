@@ -12,7 +12,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/comments")
@@ -41,6 +43,7 @@ public class CommentController {
             item.put("userName", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "userName") : "匿名用户");
             item.put("userAvatar", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "userAvatar") : "");
             item.put("createTime", comment.getCreateTime());
+            item.put("likeCount", comment.getDoc() != null ? getIntFromDoc(comment.getDoc(), "likeCount", 0) : 0);
             records.add(item);
         }
 
@@ -74,6 +77,63 @@ public class CommentController {
         return ResponseVO.success();
     }
 
+    /**
+     * 点赞评论
+     */
+    @PostMapping("/{id}/like")
+    public ResponseVO<Map<String, Object>> like(@PathVariable Long id) {
+        String userId = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Comment comment = commentService.like(id, Long.parseLong(userId));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", comment.getId());
+        result.put("likeCount", comment.getDoc() != null ? getIntFromDoc(comment.getDoc(), "likeCount", 0) : 0);
+
+        return ResponseVO.success(result);
+    }
+
+    /**
+     * 检查是否已点赞
+     */
+    @GetMapping("/{id}/liked")
+    public ResponseVO<Map<String, Object>> isLiked(@PathVariable Long id) {
+        String userId = null;
+        try {
+            userId = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        } catch (Exception e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("liked", false);
+            return ResponseVO.success(result);
+        }
+
+        boolean liked = commentService.isLiked(id, Long.parseLong(userId));
+        Map<String, Object> result = new HashMap<>();
+        result.put("liked", liked);
+
+        return ResponseVO.success(result);
+    }
+
+    /**
+     * 获取评论的回复列表
+     */
+    @GetMapping("/{id}/replies")
+    public ResponseVO<List<Map<String, Object>>> getReplies(@PathVariable Long id) {
+        List<Comment> replies = commentService.getReplies(id);
+
+        List<Map<String, Object>> result = replies.stream().map(comment -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", comment.getId().toString());
+            item.put("content", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "content") : "");
+            item.put("userName", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "userName") : "匿名用户");
+            item.put("userAvatar", comment.getDoc() != null ? extractFromDoc(comment.getDoc(), "userAvatar") : "");
+            item.put("createTime", comment.getCreateTime());
+            item.put("likeCount", comment.getDoc() != null ? getIntFromDoc(comment.getDoc(), "likeCount", 0) : 0);
+            return item;
+        }).collect(Collectors.toList());
+
+        return ResponseVO.success(result);
+    }
+
     private String extractFromDoc(String doc, String key) {
         if (doc == null || doc.isEmpty()) {
             return "";
@@ -85,6 +145,23 @@ public class CommentController {
             return value != null ? value.toString() : "";
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    private int getIntFromDoc(String doc, String key, int defaultValue) {
+        if (doc == null || doc.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            java.util.Map<String, Object> map = mapper.readValue(doc, java.util.Map.class);
+            Object value = map.get(key);
+            if (value instanceof Number) {
+                return ((Number) value).intValue();
+            }
+            return defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
         }
     }
 }
