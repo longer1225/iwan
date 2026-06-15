@@ -1,6 +1,8 @@
 package com.iwan.blog.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.iwan.blog.handler.JsonbTypeHandler;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -9,5 +11,6 @@ import lombok.EqualsAndHashCode;
 @TableName("sys_friend")
 public class Friend extends BaseEntity {
 
+    @TableField(value = "doc", typeHandler = JsonbTypeHandler.class)
     private String doc;
 }

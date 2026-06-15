@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好友请求测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #4CAF50;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .error {
+            border-left-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>好友请求功能测试</h1>
+        
+        <div class="test-section">
+            <h2>1. 用户登录</h2>
+            <input type="text" id="loginUsername" placeholder="用户名" value="iwanna">
+            <input type="password" id="loginPassword" placeholder="密码" value="password123">
+            <button onclick="login()">登录</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. 搜索用户</h2>
+            <input type="text" id="searchKeyword" placeholder="搜索关键词" value="iwanna2">
+            <button onclick="searchUser()">搜索用户</button>
+            <div id="searchResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. 发送好友请求</h2>
+            <input type="text" id="targetUserId" placeholder="目标用户ID" value="">
+            <button onclick="sendFriendRequest()">发送好友请求</button>
+            <div id="sendResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. 查看好友请求</h2>
+            <button onclick="getFriendRequests()">查看好友请求</button>
+            <div id="requestsResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>5. 同意好友请求</h2>
+            <input type="text" id="requestId" placeholder="请求ID" value="">
+            <button onclick="acceptRequest()">同意好友请求</button>
+            <div id="acceptResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>6. 查看好友列表</h2>
+            <button onclick="getFriends()">查看好友列表</button>
+            <div id="friendsResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/iwan/api/v1';
+        let token = '';
+
+        async function makeRequest(url, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${API_BASE_URL}${url}`, {
+                ...options,
+                headers
+            });
+
+            const data = await response.json();
+            return { status: response.status, data };
+        }
+
+        function displayResult(elementId, result, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(result, null, 2);
+            element.className = isError ? 'result error' : 'result';
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const result = await makeRequest('/user/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (result.status === 200 && result.data.code === 200) {
+                    token = result.data.data.token;
+                    displayResult('loginResult', {
+                        success: true,
+                        message: '登录成功',
+                        data: result.data.data
+                    });
+                } else {
+                    displayResult('loginResult', {
+                        success: false,
+                        message: '登录失败',
+                        data: result.data
+                    }, true);
+                }
+            } catch (error) {
+                displayResult('loginResult', {
+                    success: false,
+                    message: '请求失败',
+                    error: error.message
+                }, true);
+            }
+        }
+
+        async function searchUser() {
+            const keyword = document.getElementById('searchKeyword').value;
+            
+            try {
+                const result = await makeRequest(`/search?keyword=${keyword}&type=user`);
+                
+                if (result.status === 200 && result.data.code === 200) {
+                    displayResult('searchResult', {
+                        success: true,
+                        data: result.data.data
+                    });
+                    
+                    // 如果找到用户，自动填充目标用户ID
+                    if (result.data.data.users && result.data.data.users.length > 0) {
+                        document.getElementById('targetUserId').value = result.data.data.users[0].id;
+                    }
+                } else {
+                    displayResult('searchResult', {
+                        success: false,
+                        message: '搜索失败',
+                        data: result.data
+                    }, true);
+                }
+            } catch (error) {
+                displayResult('searchResult', {
+                    success: false,
+                    message: '请求失败',
+                    error: error.message
+                }, true);
+            }
+        }
+
+        async function sendFriendRequest() {
+            const targetUserId = document.getElementById('targetUserId').value;
+            
+            if (!targetUserId) {
+                displayResult('sendResult', {
+                    success: false,
+                    message: '请先搜索用户或输入目标用户ID'
+                }, true);
+                return;
+            }
+            
+            try {
+                const result = await makeRequest('/friends/request', {
+                    method: 'POST',
+                    body: JSON.stringify({ targetUserId: parseInt(targetUserId) })
+                });
+                
+                if (result.status === 200 && result.data.code === 200) {
+                    displayResult('sendResult', {
+                        success: true,
+                        message: '好友请求已发送',
+                        data: result.data.data
+                    });
+                } else {
+                    displayResult('sendResult', {
+                        success: false,
+                        message: '发送好友请求失败',
+                        data: result.data
+                    }, true);
+                }
+            } catch (error) {
+                displayResult('sendResult', {
+                    success: false,
+                    message: '请求失败',
+                    error: error.message
+                }, true);
+            }
+        }
+
+        async function getFriendRequests() {
+            try {
+                const result = await makeRequest('/friends/requests');
+                
+                if (result.status === 200 && result.data.code === 200) {
+                    displayResult('requestsResult', {
+                        success: true,
+                        data: result.data.data
+                    });
+                    
+                    // 如果有请求，自动填充请求ID
+                    if (result.data.data && result.data.data.length > 0) {
+                        document.getElementById('requestId').value = result.data.data[0].id;
+                    }
+                } else {
+                    displayResult('requestsResult', {
+                        success: false,
+                        message: '获取好友请求失败',
+                        data: result.data
+                    }, true);
+                }
+            } catch (error) {
+                displayResult('requestsResult', {
+                    success: false,
+                    message: '请求失败',
+                    error: error.message
+                }, true);
+            }
+        }
+
+        async function acceptRequest() {
+            const requestId = document.getElementById('requestId').value;
+            
+            if (!requestId) {
+                displayResult('acceptResult', {
+                    success: false,
+                    message: '请先查看好友请求或输入请求ID'
+                }, true);
+                return;
+            }
+            
+            try {
+                const result = await makeRequest(`/friends/request/${requestId}/accept`, {
+                    method: 'POST'
+                });
+                
+                if (result.status === 200 && result.data.code === 200) {
+                    displayResult('acceptResult', {
+                        success: true,
+                        message: '已同意好友请求',
+                        data: result.data.data
+                    });
+                } else {
+                    displayResult('acceptResult', {
+                        success: false,
+                        message: '同意好友请求失败',
+                        data: result.data
+                    }, true);
+                }
+            } catch (error) {
+                displayResult('acceptResult', {
+                    success: false,
+                    message: '请求失败',
+                    error: error.message
+                }, true);
+            }
+        }
+
+        async function getFriends() {
+            try {
+                const result = await makeRequest('/friends');
+                
+                if (result.status === 200 && result.data.code === 200) {
+                    displayResult('friendsResult', {
+                        success: true,
+                        data: result.data.data
+                    });
+                } else {
+                    displayResult('friendsResult', {
+                        success: false,
+                        message: '获取好友列表失败',
+                        data: result.data
+                    }, true);
+                }
+            } catch (error) {
+                displayResult('friendsResult', {
+                    success: false,
+                    message: '请求失败',
+                    error: error.message
+                }, true);
+            }
+        }
+    </script>
+</body>
+</html>

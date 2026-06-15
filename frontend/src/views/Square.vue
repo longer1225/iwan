@@ -144,12 +144,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { articleApi } from '@/api/article'
+import { tagApi } from '@/api/tag'
 import BottomNav from '@/components/BottomNav.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-const defaultAvatar = 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=professional%20avatar%20portrait%20minimalist&image_size=square'
+const defaultAvatar = '/api/v1/upload/avatar/default'
 
 const searchKeyword = ref('')
 const sortType = ref('time')
@@ -202,16 +203,37 @@ const loadCategories = async () => {
 }
 
 const loadHotTags = async () => {
-  hotTags.value = [
-    { id: '1', name: 'Vue' },
-    { id: '2', name: 'React' },
-    { id: '3', name: 'Java' },
-    { id: '4', name: 'Python' },
-    { id: '5', name: 'AI' },
-    { id: '6', name: '数据库' },
-    { id: '7', name: '前端' },
-    { id: '8', name: '后端' }
-  ]
+  try {
+    const response = await tagApi.getHot(8)
+    if (response.code === 200) {
+      hotTags.value = response.data
+    } else {
+      // 如果API失败，使用模拟数据
+      hotTags.value = [
+        { id: '1', name: 'Vue' },
+        { id: '2', name: 'React' },
+        { id: '3', name: 'Java' },
+        { id: '4', name: 'Python' },
+        { id: '5', name: 'AI' },
+        { id: '6', name: '数据库' },
+        { id: '7', name: '前端' },
+        { id: '8', name: '后端' }
+      ]
+    }
+  } catch (error) {
+    console.error('加载标签失败:', error)
+    // 使用模拟数据
+    hotTags.value = [
+      { id: '1', name: 'Vue' },
+      { id: '2', name: 'React' },
+      { id: '3', name: 'Java' },
+      { id: '4', name: 'Python' },
+      { id: '5', name: 'AI' },
+      { id: '6', name: '数据库' },
+      { id: '7', name: '前端' },
+      { id: '8', name: '后端' }
+    ]
+  }
 }
 
 const handleSearch = () => {

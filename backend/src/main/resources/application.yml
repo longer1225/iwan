@@ -50,3 +50,8 @@ jwt:
 logging:
   level:
     com.iwan.blog: DEBUG
+    org.springframework.amqp: WARN
+    org.springframework.security: WARN
+  file:
+    name: logs/spring-boot.log
+    path: logs/

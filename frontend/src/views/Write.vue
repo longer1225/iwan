@@ -143,6 +143,28 @@
           <p class="anonymous-hint">开启后将以匿名用户身份发布文章，不显示您的头像和昵称</p>
         </div>
         
+        <!-- 可见范围权限 -->
+        <div class="visibility-section">
+          <label class="visibility-label">可见范围</label>
+          <div class="visibility-options">
+            <label 
+              v-for="option in visibilityOptions" 
+              :key="option.value"
+              class="visibility-option"
+              :class="{ active: articleForm.visibility === option.value }"
+            >
+              <input 
+                type="radio" 
+                v-model="articleForm.visibility" 
+                :value="option.value"
+              />
+              <span class="option-icon">{{ option.icon }}</span>
+              <span class="option-label">{{ option.label }}</span>
+            </label>
+          </div>
+          <p class="visibility-hint">{{ visibilityHint }}</p>
+        </div>
+        
         <!-- 封面图片 -->
         <div class="cover-section">
           <label>封面图片</label>
@@ -215,7 +237,9 @@ const articleForm = reactive({
   tagList: [],
   cover: '',
   status: 1,
-  anonymous: false
+  anonymous: false,
+  visibility: 'PUBLIC',
+  groupId: ''
 })
 
 const tagInput = ref('')
@@ -224,6 +248,28 @@ const showImageDialog = ref(false)
 const uploadedImages = ref([])
 const selectedImageIndex = ref(-1)
 const imageInput = ref(null)
+
+const visibilityOptions = [
+  { value: 'PUBLIC', label: '公开可见', icon: '🌐' },
+  { value: 'FRIENDS_ONLY', label: '仅好友可见', icon: '👥' },
+  { value: 'PRIVATE', label: '仅自己可见', icon: '🔒' },
+  { value: 'GROUP', label: '指定分组', icon: '📋' }
+]
+
+const visibilityHint = () => {
+  switch (articleForm.visibility) {
+    case 'PUBLIC':
+      return '所有用户都可以看到这篇文章'
+    case 'FRIENDS_ONLY':
+      return '只有你的好友可以看到这篇文章'
+    case 'PRIVATE':
+      return '只有你自己可以看到这篇文章'
+    case 'GROUP':
+      return '只有指定分组内的好友可以看到这篇文章'
+    default:
+      return ''
+  }
+}
 
 const goBack = () => {
   router.back()
@@ -429,7 +475,9 @@ const submitArticle = async () => {
       tagList: articleForm.tagList,
       cover: articleForm.cover,
       status: articleForm.status,
-      anonymous: articleForm.anonymous
+      anonymous: articleForm.anonymous,
+      visibility: articleForm.visibility,
+      groupId: articleForm.groupId
     })
     
     if (response.code === 200) {
@@ -701,6 +749,68 @@ if (draft) {
   padding: 16px;
   background-color: var(--bg-primary, #f5f5f5);
   border-radius: 8px;
+}
+
+.visibility-section {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: var(--bg-primary, #f5f5f5);
+  border-radius: 8px;
+}
+
+.visibility-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin-bottom: 12px;
+}
+
+.visibility-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.visibility-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-secondary, white);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  
+  &:hover {
+    border-color: #667eea;
+  }
+  
+  &.active {
+    border-color: #667eea;
+    background-color: rgba(102, 126, 234, 0.05);
+  }
+  
+  input {
+    display: none;
+  }
+}
+
+.option-icon {
+  font-size: 18px;
+}
+
+.option-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+.visibility-hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
 }
 
 .anonymous-label {

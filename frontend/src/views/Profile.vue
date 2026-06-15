@@ -27,8 +27,7 @@
           </div>
         </div>
         <div class="profile-actions">
-          <el-button type="primary" @click="goToWrite">写文章</el-button>
-          <el-button @click="goToManage">管理作品</el-button>
+          <el-button type="primary" @click="goToManage">管理作品</el-button>
         </div>
       </div>
     </div>
@@ -75,7 +74,6 @@
             
             <div v-if="myArticles.length === 0" class="empty-state">
               <p>暂无文章</p>
-              <el-button type="primary" @click="goToWrite">写第一篇文章</el-button>
             </div>
           </div>
         </div>
@@ -373,6 +371,11 @@ const systemForm = reactive({
   aiNotify: true
 })
 
+// 初始化暗黑模式状态
+const initDarkMode = () => {
+  systemForm.darkMode = themeStore.isDark
+}
+
 // 头像裁剪相关
 const showCropper = ref(false)
 const cropperImage = ref('')
@@ -621,6 +624,9 @@ const saveSystem = () => {
 
 onMounted(() => {
   console.log('=== Profile onMounted ===')
+  
+  // 初始化暗黑模式状态
+  initDarkMode()
   
   // 恢复之前保存的菜单状态
   const savedMenu = sessionStorage.getItem('profileActiveMenu')

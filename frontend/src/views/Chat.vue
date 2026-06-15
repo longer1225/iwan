@@ -6,11 +6,29 @@
         <el-button size="small" @click="showAddFriend = true">添加好友</el-button>
       </div>
       
-      <div class="search-box">
+      <!-- 标签切换：好友列表 / 好友请求 -->
+      <div class="sidebar-tabs">
+        <button 
+          :class="{ active: activeTab === 'friends' }" 
+          @click="activeTab = 'friends'"
+        >
+          好友列表
+        </button>
+        <button 
+          :class="{ active: activeTab === 'requests' }" 
+          @click="activeTab = 'requests'; loadFriendRequests()"
+        >
+          好友请求
+          <span v-if="friendRequests.length > 0" class="badge">{{ friendRequests.length }}</span>
+        </button>
+      </div>
+      
+      <div v-if="activeTab === 'friends'" class="search-box">
         <el-input v-model="searchKeyword" placeholder="搜索好友..." size="small" />
       </div>
       
-      <div class="friend-list">
+      <!-- 好友列表 -->
+      <div v-if="activeTab === 'friends'" class="friend-list">
         <div 
           v-for="friend in filteredFriends" 
           :key="friend.id"
@@ -19,16 +37,39 @@
           class="friend-item"
         >
           <div class="friend-avatar">
-            <img :src="friend.avatar" />
+            <img :src="friend.userAvatar || '/api/v1/upload/avatar/default'" />
             <span :class="{ online: friend.online }" class="status-dot"></span>
           </div>
           <div class="friend-info">
-            <div class="friend-name">{{ friend.nickname }}</div>
+            <div class="friend-name">{{ friend.userName }}</div>
             <div class="last-message">{{ friend.lastMessage || '暂无消息' }}</div>
           </div>
           <div class="friend-meta">
-            <span class="message-time">{{ friend.lastTime }}</span>
-            <span v-if="friend.unreadCount > 0" class="unread-badge">{{ friend.unreadCount }}</span>
+            <span class="message-time">{{ formatTime(friend.createTime) }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 好友请求列表 -->
+      <div v-if="activeTab === 'requests'" class="request-list">
+        <div v-if="friendRequests.length === 0" class="no-requests">
+          <p>暂无好友请求</p>
+        </div>
+        <div 
+          v-for="request in friendRequests" 
+          :key="request.id"
+          class="request-item"
+        >
+          <div class="request-avatar">
+            <img :src="request.userAvatar || '/api/v1/upload/avatar/default'" />
+          </div>
+          <div class="request-info">
+            <div class="request-name">{{ request.userName }}</div>
+            <div class="request-time">{{ formatTime(request.createTime) }} 发送请求</div>
+          </div>
+          <div class="request-actions">
+            <el-button size="small" type="primary" @click="acceptRequest(request.id)">同意</el-button>
+            <el-button size="small" @click="rejectRequest(request.id)">拒绝</el-button>
           </div>
         </div>
       </div>
@@ -37,9 +78,9 @@
     <div class="chat-main" v-if="selectedFriend">
       <div class="chat-header">
         <div class="friend-info">
-          <img :src="selectedFriend.avatar" class="avatar" />
+          <img :src="selectedFriend.userAvatar || '/api/avatar/default'" class="avatar" />
           <div>
-            <span class="friend-name">{{ selectedFriend.nickname }}</span>
+            <span class="friend-name">{{ selectedFriend.userName }}</span>
             <span :class="{ online: selectedFriend.online }" class="status">{{ selectedFriend.online ? '在线' : '离线' }}</span>
           </div>
         </div>
@@ -53,13 +94,13 @@
         <div 
           v-for="message in messages" 
           :key="message.id"
-          :class="{ 'self': message.isSelf, 'other': !message.isSelf }"
+          :class="{ 'self': message.fromUserId === currentUserId, 'other': message.fromUserId !== currentUserId }"
           class="message-item"
         >
-          <img :src="message.avatar" class="message-avatar" />
+          <img :src="message.userAvatar || '/api/avatar/default'" class="message-avatar" />
           <div class="message-content">
             <div class="message-text">{{ message.content }}</div>
-            <span class="message-time">{{ message.time }}</span>
+            <span class="message-time">{{ formatTime(message.createTime) }}</span>
           </div>
         </div>
       </div>
@@ -81,11 +122,8 @@
     
     <el-dialog title="添加好友" v-model="showAddFriend">
       <el-form :model="addFriendForm">
-        <el-form-item label="好友账号">
-          <el-input v-model="addFriendForm.username" placeholder="输入好友账号" />
-        </el-form-item>
-        <el-form-item label="验证消息">
-          <el-input v-model="addFriendForm.remark" placeholder="输入验证消息" />
+        <el-form-item label="用户名或用户ID">
+          <el-input v-model="addFriendForm.targetUserId" placeholder="输入用户名或用户ID" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -99,89 +137,191 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { friendApi } from '@/api/friend'
+import { messageApi } from '@/api/message'
+import { userApi } from '@/api/user'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+const currentUserId = userStore.user?.id
 
 const searchKeyword = ref('')
 const selectedFriend = ref(null)
 const messages = ref([])
 const inputMessage = ref('')
 const showAddFriend = ref(false)
+const friends = ref([])
+const friendRequests = ref([])
+const activeTab = ref('friends')
 
 const addFriendForm = reactive({
-  username: '',
-  remark: ''
+  targetUserId: '',
+  message: ''
 })
-
-const friends = ref([
-  { id: 1, nickname: '张三', avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=young%20man%20avatar%20friendly&image_size=square', online: true, lastMessage: '最近忙什么呢？', lastTime: '刚刚', unreadCount: 2 },
-  { id: 2, nickname: '李四', avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=professional%20woman%20avatar&image_size=square', online: false, lastMessage: '好的，明天见', lastTime: '2小时前', unreadCount: 0 },
-  { id: 3, nickname: '王五', avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=casual%20person%20avatar&image_size=square', online: true, lastMessage: '文章写得很棒！', lastTime: '昨天', unreadCount: 0 }
-])
 
 const filteredFriends = computed(() => {
   if (!searchKeyword.value) return friends.value
-  return friends.value.filter(f => f.nickname.includes(searchKeyword.value))
+  return friends.value.filter(f => f.userName.includes(searchKeyword.value))
 })
 
 const selectFriend = (friend) => {
   selectedFriend.value = friend
-  friend.unreadCount = 0
-  loadMessages(friend.id)
+  loadMessages(friend.friendId)
 }
 
-const loadMessages = (friendId) => {
-  messages.value = [
-    { id: 1, content: '最近在忙什么呢？', time: '10:00', avatar: friends.value[0].avatar, isSelf: false },
-    { id: 2, content: '在做一个博客项目，用Vue3开发', time: '10:01', avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=user%20avatar%20default&image_size=square', isSelf: true },
-    { id: 3, content: '听起来很不错！我也想学一下', time: '10:02', avatar: friends.value[0].avatar, isSelf: false },
-    { id: 4, content: '可以啊，Vue3挺好用的，配合Vite很快', time: '10:03', avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=user%20avatar%20default&image_size=square', isSelf: true }
-  ]
+const loadMessages = async (friendId) => {
+  try {
+    const response = await messageApi.getHistory(friendId)
+    if (response.code === 200) {
+      messages.value = response.data.reverse()
+    }
+  } catch (error) {
+    console.error('加载消息失败:', error)
+    messages.value = []
+  }
 }
 
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!inputMessage.value.trim() || !selectedFriend.value) return
   
-  const newMessage = {
-    id: Date.now(),
-    content: inputMessage.value,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=user%20avatar%20default&image_size=square',
-    isSelf: true
-  }
-  
-  messages.value.push(newMessage)
-  inputMessage.value = ''
-  
-  setTimeout(() => {
-    const reply = {
-      id: Date.now() + 1,
-      content: '好的，收到！',
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      avatar: selectedFriend.value.avatar,
-      isSelf: false
+  try {
+    const response = await messageApi.send({
+      toUserId: selectedFriend.value.friendId,
+      content: inputMessage.value,
+      type: 'TEXT'
+    })
+    
+    if (response.code === 200) {
+      const newMessage = {
+        id: Date.now(),
+        content: inputMessage.value,
+        fromUserId: currentUserId,
+        toUserId: selectedFriend.value.friendId,
+        userAvatar: userStore.user?.avatar,
+        createTime: new Date()
+      }
+      
+      messages.value.push(newMessage)
+      inputMessage.value = ''
     }
-    messages.value.push(reply)
-  }, 1000)
+  } catch (error) {
+    console.error('发送消息失败:', error)
+  }
 }
 
 const sendFriendRequest = async () => {
+  if (!addFriendForm.targetUserId.trim()) {
+    alert('请输入用户名或用户ID')
+    return
+  }
+
   try {
-    await friendApi.apply({
-      targetUserId: addFriendForm.username,
-      applyRemark: addFriendForm.remark
+    // 获取输入值并去除前后空格
+    let targetUserId = addFriendForm.targetUserId.trim()
+
+    // 判断输入是否为纯数字（用户ID）
+    const isNumeric = /^\d+$/.test(targetUserId)
+
+    if (!isNumeric) {
+      // 如果是用户名，先调用搜索接口查询用户ID
+      const searchResponse = await userApi.search(targetUserId)
+      if (searchResponse.code === 200 && searchResponse.data && searchResponse.data.users && searchResponse.data.users.length > 0) {
+        // 后端已返回字符串类型的ID，避免精度丢失
+        targetUserId = String(searchResponse.data.users[0].id)
+      } else {
+        alert('未找到该用户')
+        return
+      }
+    }
+
+    // 发送好友请求，targetUserId必须为字符串类型，防止大数字精度丢失
+    const response = await friendApi.sendRequest({
+      targetUserId: targetUserId.toString()
     })
-    showAddFriend.value = false
-    addFriendForm.username = ''
-    addFriendForm.remark = ''
-    alert('好友请求已发送')
+
+    if (response.code === 200) {
+      showAddFriend.value = false
+      addFriendForm.targetUserId = ''
+      alert('好友请求已发送，等待对方确认')
+    } else {
+      // 处理业务错误
+      alert(response.msg || '发送失败')
+    }
   } catch (error) {
     console.error('发送请求失败:', error)
+    alert('发送失败')
   }
 }
 
-onMounted(() => {
-  if (friends.value.length > 0) {
-    selectFriend(friends.value[0])
+const loadFriends = async () => {
+  try {
+    const response = await friendApi.getFriends()
+    if (response.code === 200) {
+      // 默认显示所有好友为在线状态（暂无WebSocket实时状态功能）
+      friends.value = response.data.map(f => ({ ...f, online: true }))
+    }
+  } catch (error) {
+    console.error('加载好友列表失败:', error)
   }
+}
+
+const loadFriendRequests = async () => {
+  try {
+    const response = await friendApi.getRequests()
+    if (response.code === 200) {
+      friendRequests.value = response.data
+    }
+  } catch (error) {
+    console.error('加载好友请求失败:', error)
+    friendRequests.value = []
+  }
+}
+
+const acceptRequest = async (requestId) => {
+  try {
+    const response = await friendApi.acceptRequest(requestId)
+    if (response.code === 200) {
+      alert('已同意好友请求')
+      // 移除已处理的请求
+      friendRequests.value = friendRequests.value.filter(r => r.id !== requestId)
+      // 刷新好友列表
+      loadFriends()
+    }
+  } catch (error) {
+    console.error('同意好友请求失败:', error)
+    alert('操作失败')
+  }
+}
+
+const rejectRequest = async (requestId) => {
+  try {
+    const response = await friendApi.rejectRequest(requestId)
+    if (response.code === 200) {
+      alert('已拒绝好友请求')
+      // 移除已处理的请求
+      friendRequests.value = friendRequests.value.filter(r => r.id !== requestId)
+    }
+  } catch (error) {
+    console.error('拒绝好友请求失败:', error)
+    alert('操作失败')
+  }
+}
+
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  const now = new Date()
+  const diff = now - date
+  
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
+  
+  return date.toLocaleDateString('zh-CN')
+}
+
+onMounted(() => {
+  loadFriends()
 })
 </script>
 
@@ -190,13 +330,13 @@ onMounted(() => {
   display: flex;
   height: calc(100vh - 60px);
   padding-top: 60px;
-  background-color: #f5f5f5;
+  background-color: var(--bg-primary, #f5f5f5);
 }
 
 .chat-sidebar {
   width: 320px;
-  background: white;
-  border-right: 1px solid #eee;
+  background: var(--bg-secondary, white);
+  border-right: 1px solid var(--border-color, #eee);
   display: flex;
   flex-direction: column;
 }
@@ -206,7 +346,57 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.sidebar-tabs button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+  position: relative;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: var(--bg-primary, #f8f9fa);
+  }
+  
+  &.active {
+    color: #667eea;
+    font-weight: 600;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 2px;
+      background: #667eea;
+      border-radius: 2px;
+    }
+  }
+  
+  .badge {
+    display: inline-block;
+    background: #ff4d4f;
+    color: white;
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 10px;
+    margin-left: 4px;
+    min-width: 16px;
+    text-align: center;
+  }
 }
 
 .search-box {
@@ -218,6 +408,65 @@ onMounted(() => {
   overflow-y: auto;
 }
 
+.request-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.no-requests {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary, #999);
+}
+
+.request-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-primary, #fafafa);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.request-avatar {
+  margin-right: 12px;
+  
+  img {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}
+
+.request-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.request-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin-bottom: 4px;
+}
+
+.request-time {
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
+}
+
+.request-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.request-actions .el-button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
 .friend-item {
   display: flex;
   align-items: center;
@@ -226,11 +475,11 @@ onMounted(() => {
   transition: background-color 0.2s;
   
   &:hover {
-    background: #f8f9fa;
+    background: var(--bg-primary, #f8f9fa);
   }
   
   &.active {
-    background: #f0f4ff;
+    background: #eef2ff;
   }
 }
 
@@ -242,6 +491,7 @@ onMounted(() => {
     width: 48px;
     height: 48px;
     border-radius: 50%;
+    object-fit: cover;
   }
   
   .status-dot {
@@ -252,7 +502,7 @@ onMounted(() => {
     height: 12px;
     border-radius: 50%;
     background: #999;
-    border: 2px solid white;
+    border: 2px solid var(--bg-secondary, white);
     
     &.online {
       background: #52c41a;
@@ -269,11 +519,12 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 4px;
+  color: var(--text-primary, #333);
 }
 
 .last-message {
   font-size: 12px;
-  color: #999;
+  color: var(--text-tertiary, #999);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -285,27 +536,14 @@ onMounted(() => {
 
 .message-time {
   font-size: 11px;
-  color: #999;
-}
-
-.unread-badge {
-  display: inline-block;
-  min-width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  background: #f5222d;
-  color: white;
-  font-size: 12px;
-  border-radius: 9px;
-  margin-top: 4px;
+  color: var(--text-tertiary, #999);
 }
 
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--bg-secondary, white);
 }
 
 .chat-header {
@@ -313,7 +551,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color, #eee);
 }
 
 .chat-header .friend-info {
@@ -326,6 +564,7 @@ onMounted(() => {
   width: 44px;
   height: 44px;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .chat-header .friend-name {
@@ -334,7 +573,7 @@ onMounted(() => {
 
 .chat-header .status {
   font-size: 12px;
-  color: #999;
+  color: var(--text-tertiary, #999);
   
   &.online {
     color: #52c41a;
@@ -358,7 +597,7 @@ onMounted(() => {
     flex-direction: row-reverse;
     
     .message-content {
-      background: #667eea;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border-radius: 12px 12px 0 12px;
     }
@@ -366,7 +605,7 @@ onMounted(() => {
   
   &.other {
     .message-content {
-      background: #f0f0f0;
+      background: var(--bg-primary, #f0f0f0);
       border-radius: 12px 12px 12px 0;
     }
   }
@@ -377,6 +616,7 @@ onMounted(() => {
   height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 .message-content {
@@ -387,11 +627,12 @@ onMounted(() => {
 .message-text {
   font-size: 14px;
   line-height: 1.5;
+  color: inherit;
 }
 
 .message-time {
   font-size: 11px;
-  color: #999;
+  color: var(--text-tertiary, #999);
   margin-top: 4px;
   display: block;
 }
@@ -400,7 +641,7 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   padding: 12px 16px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color, #eee);
 }
 
 .message-input .el-input {
@@ -413,7 +654,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #fafafa;
+  background: var(--bg-primary, #fafafa);
 }
 
 .empty-icon {
@@ -422,6 +663,6 @@ onMounted(() => {
 }
 
 .chat-empty p {
-  color: #999;
+  color: var(--text-tertiary, #999);
 }
 </style>

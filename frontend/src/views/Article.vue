@@ -136,7 +136,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const defaultAvatar = 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=professional%20avatar%20portrait%20minimalist&image_size=square'
+const defaultAvatar = '/api/v1/upload/avatar/default'
 
 const article = ref(null)
 const comments = ref([])

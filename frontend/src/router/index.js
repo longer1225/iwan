@@ -32,6 +32,24 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/chat/:userId',
+    name: 'ChatWithUser',
+    component: () => import('@/views/Chat.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/friends',
+    name: 'Friends',
+    component: () => import('@/views/Friends.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/Search.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/ai',
     name: 'AI',
     component: () => import('@/views/AIChat.vue'),

@@ -147,7 +147,7 @@ const navItems = [
 ]
 
 const profileForm = reactive({
-  avatar: 'https://neeko-copilot.bytedance.net/api/text_to_image?prompt=professional%20avatar%20portrait%20minimalist&image_size=square',
+  avatar: '/api/v1/upload/avatar/default',
   nickname: '',
   bio: ''
 })

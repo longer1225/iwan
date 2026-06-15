@@ -25,11 +25,14 @@ public class ArticleController {
     private final ArticleService articleService;
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
+    private final com.iwan.blog.service.PermissionService permissionService;
 
-    public ArticleController(ArticleService articleService, UserMapper userMapper, ObjectMapper objectMapper) {
+    public ArticleController(ArticleService articleService, UserMapper userMapper, ObjectMapper objectMapper,
+                            com.iwan.blog.service.PermissionService permissionService) {
         this.articleService = articleService;
         this.userMapper = userMapper;
         this.objectMapper = objectMapper;
+        this.permissionService = permissionService;
     }
 
     @GetMapping
@@ -42,8 +45,17 @@ public class ArticleController {
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "time") String sortBy) {
 
+        // 获取当前用户ID
+        Long userId = null;
+        try {
+            String userIdStr = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            userId = Long.parseLong(userIdStr);
+        } catch (Exception e) {
+            // 匿名用户
+        }
+
         Page<Article> page = new Page<>(pageNum, pageSize);
-        IPage<Article> result = articleService.list(page, keyword, categoryId, tagId, status, sortBy);
+        IPage<Article> result = articleService.list(page, keyword, categoryId, tagId, status, sortBy, userId);
 
         // 转换文章列表为响应格式
         java.util.List<Map<String, Object>> records = new java.util.ArrayList<>();
@@ -82,6 +94,19 @@ public class ArticleController {
         if (article == null) {
             return ResponseVO.notFound("文章不存在");
         }
+        
+        // 权限检查
+        Long userId = null;
+        try {
+            String userIdStr = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            userId = Long.parseLong(userIdStr);
+        } catch (Exception e) {
+            // 匿名用户
+        }
+        
+        if (!permissionService.canViewArticle(article, userId)) {
+            return ResponseVO.forbidden("无权限查看该文章");
+        }
 
         // 增加阅读计数
         articleService.updateReadCount(articleId);
@@ -118,8 +143,12 @@ public class ArticleController {
                         Long authorId = null;
                         if (authorIdObj instanceof Long) {
                             authorId = (Long) authorIdObj;
+                        } else if (authorIdObj instanceof Integer) {
+                            authorId = ((Integer) authorIdObj).longValue();
                         } else if (authorIdObj instanceof String) {
                             authorId = Long.parseLong((String) authorIdObj);
+                        } else if (authorIdObj instanceof Number) {
+                            authorId = ((Number) authorIdObj).longValue();
                         }
                         
                         if (authorId != null) {

@@ -1,40 +1,49 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
   const isDark = ref(false)
-  
-  const initTheme = () => {
-    const stored = localStorage.getItem('isDark')
-    if (stored !== null) {
-      isDark.value = stored === 'true'
-    } else {
-      // 默认检查系统主题偏好
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        isDark.value = true
-      }
-    }
-  }
-  
-  const setDarkMode = (value) => {
-    const newValue = !!value
-    if (isDark.value !== newValue) {
-      isDark.value = newValue
-      localStorage.setItem('isDark', String(newValue))
-    }
-  }
-  
+
   const toggleTheme = () => {
-    setDarkMode(!isDark.value)
+    isDark.value = !isDark.value
+    localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+    updateTheme()
   }
-  
-  // 初始化时加载主题
-  initTheme()
-  
+
+  const setTheme = (dark) => {
+    isDark.value = dark
+    localStorage.setItem('theme', dark ? 'dark' : 'light')
+    updateTheme()
+  }
+
+  const setDarkMode = (dark) => {
+    setTheme(dark)
+  }
+
+  const updateTheme = () => {
+    if (isDark.value) {
+      document.documentElement.classList.add('dark')
+      document.body.classList.add('dark-theme')
+    } else {
+      document.documentElement.classList.remove('dark')
+      document.body.classList.remove('dark-theme')
+    }
+  }
+
+  const loadTheme = () => {
+    const saved = localStorage.getItem('theme')
+    if (saved === 'dark' || (saved === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setTheme(true)
+    } else {
+      setTheme(false)
+    }
+  }
+
   return {
     isDark,
     toggleTheme,
+    setTheme,
     setDarkMode,
-    initTheme
+    loadTheme
   }
 })

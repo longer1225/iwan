@@ -1,12 +1,14 @@
 package com.iwan.blog.controller;
 
 import com.iwan.blog.vo.ResponseVO;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -178,5 +180,21 @@ public class UploadController {
             return ext;
         }
         return defaultExt;
+    }
+
+    /**
+     * 获取默认头像（SVG格式）
+     */
+    @GetMapping(value = "/avatar/default", produces = "image/svg+xml")
+    public @ResponseBody byte[] getDefaultAvatar() {
+        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\">" +
+                     "<circle cx=\"50\" cy=\"50\" r=\"45\" fill=\"#e0e0e0\" stroke=\"#bdbdbd\" stroke-width=\"2\"/>" +
+                     "<circle cx=\"50\" cy=\"40\" r=\"18\" fill=\"#90caf9\"/>" +
+                     "<circle cx=\"50\" cy=\"55\" r=\"12\" fill=\"#90caf9\"/>" +
+                     "<circle cx=\"42\" cy=\"37\" r=\"3\" fill=\"#1a237e\"/>" +
+                     "<circle cx=\"58\" cy=\"37\" r=\"3\" fill=\"#1a237e\"/>" +
+                     "<path d=\"M 42 60 Q 50 68 58 60\" stroke=\"#1a237e\" stroke-width=\"2\" fill=\"none\"/>" +
+                     "</svg>";
+        return svg.getBytes(StandardCharsets.UTF_8);
     }
 }

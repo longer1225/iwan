@@ -1,13 +1,15 @@
-import { aiApi } from '@/utils/request'
+import { api } from '@/utils/request'
 
-export const aiApiService = {
-  getSessions: () => aiApi.get('/chat/sessions'),
-  createSession: (data) => aiApi.post('/chat/sessions', data),
-  deleteSession: (id) => aiApi.delete(`/chat/sessions/${id}`),
-  getMessages: (sessionId) => aiApi.get('/chat/messages', { params: { sessionId } }),
-  sendMessage: (data) => aiApi.post('/chat/messages', data),
-  ragSearch: (data) => aiApi.post('/rag/search', data),
-  generateArticle: (data) => aiApi.post('/article/generate', data),
-  rewriteArticle: (data) => aiApi.post('/article/rewrite', data),
-  getUserStat: () => aiApi.get('/stat/user')
+export const aiApi = {
+  // 获取推荐文章
+  getRecommendations: (limit = 5) => api.get('/ai/recommend', { params: { limit } }),
+  
+  // RAG检索
+  ragSearch: (query, limit = 3) => api.get('/ai/rag/search', { params: { query, limit } }),
+  
+  // AI聊天
+  chat: (message, useRAG = false) => api.post('/ai/chat', { message, useRAG }),
+  
+  // 获取创作建议
+  suggestTopics: () => api.post('/ai/write/suggest')
 }

@@ -70,7 +70,28 @@ CREATE TABLE IF NOT EXISTS sys_config (
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+CREATE TABLE IF NOT EXISTS notification (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    sender_id BIGINT,
+    sender_name VARCHAR(100),
+    sender_avatar VARCHAR(500),
+    related_id BIGINT,
+    link VARCHAR(500),
+    extra_data JSONB,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_doc ON sys_user USING gin (doc jsonb_path_ops);
 CREATE INDEX IF NOT EXISTS idx_article_doc ON sys_article USING gin (doc jsonb_path_ops);
 CREATE INDEX IF NOT EXISTS idx_comment_doc ON sys_comment USING gin (doc jsonb_path_ops);
 CREATE INDEX IF NOT EXISTS idx_friend_doc ON sys_friend USING gin (doc jsonb_path_ops);
+CREATE INDEX IF NOT EXISTS idx_notification_user_id ON notification(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_type ON notification(type);
+CREATE INDEX IF NOT EXISTS idx_notification_is_read ON notification(is_read);

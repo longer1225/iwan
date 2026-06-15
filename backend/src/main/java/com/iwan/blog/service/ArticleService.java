@@ -15,7 +15,7 @@ public interface ArticleService {
 
     void delete(Long id);
 
-    IPage<Article> list(Page<Article> page, String keyword, String categoryId, String tagId, Integer status, String sortBy);
+    IPage<Article> list(Page<Article> page, String keyword, String categoryId, String tagId, Integer status, String sortBy, Long userId);
 
     IPage<Article> getUserArticles(Page<Article> page, Long userId);
 
